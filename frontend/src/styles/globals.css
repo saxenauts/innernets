@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* shadcn-style CSS variables (HSL), tuned for off-white / cream + soft jade */
+:root {
+  --background: 45 40% 98%;
+  --foreground: 222 47% 11%;
+
+  --card: 45 40% 98%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 45 40% 98%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 160 60% 38%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 16% 93%;
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 210 16% 93%;
+  --muted-foreground: 215 16% 40%;
+
+  --accent: 160 60% 38%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 35 20% 86%;
+  --input: 35 20% 86%;
+  --ring: 160 60% 38%;
+
+  --radius: 0.75rem; /* 12px smooth corners */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 220 15% 10%;
+    --foreground: 210 40% 98%;
+
+    --card: 220 15% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 15% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 160 58% 46%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 220 10% 18%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 220 10% 18%;
+    --muted-foreground: 220 8% 65%;
+
+    --accent: 160 58% 46%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 10% 20%;
+    --input: 220 10% 22%;
+    --ring: 160 58% 46%;
+  }
+}
+
+/* Base: apply background/text */
+@layer base {
+  *, ::before, ::after { border-color: hsl(var(--border)); }
+  html, body, #root { height: 100%; }
+  body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+}
+
+/* Utilities */
+.container-page { margin-left: auto; margin-right: auto; max-width: 64rem; padding-left: 1rem; padding-right: 1rem; }
+@media (min-width: 640px) {
+  .container-page { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+/* Opaque card surface to avoid overlay bleed-through (no alpha/blur) */
+.card-surface { border-radius: var(--radius); border-width: 1px; background-color: hsl(var(--card)); box-shadow: 0 1px 2px hsl(var(--foreground) / 0.08); }
