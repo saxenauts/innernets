@@ -18,6 +18,11 @@ Use this document to record natural-language updates and maintain a lightweight 
 - 2025-08-26 — Applied modern UI pass: tokens wired, gradients removed, unified radius, rebuilt NavBar and Link Cards (items) with low-ink actions; adjusted layout/typography. (ref: frontend/AGENTS.md)
 - 2025-08-26 — Palette update: switched from blue/black cast to warm paper + jade accent (role-based tokens). Updated design doc with neuroscience notes and tone guidance. (ref: frontend/design.md, frontend/src/theme.ts)
 - 2025-08-26 — Added Tailwind + shadcn-style setup (tokens mapped to Tailwind, base UI components). Updated design doc with shadcn integration and patterns summary. (ref: frontend/components.json, frontend/tailwind.config.ts, frontend/src/components/ui/*)
+- 2025-08-26 — Backend scaffolded (docs-only): created backend folder with AGENTS, SCHEMA, ENVIRONMENT, LLM_ADAPTER, SCHEDULER, TODO; updated README index. (ref: backend/*, README.md)
+- 2025-08-26 — Backend FastAPI scaffold: minimal app + health endpoint, env templates (.env.example/.dev/.prod), Supabase client factory, tests; updated backend AGENTS/TODO. (ref: backend/src/app/*, backend/tests/*, .env*)
+ - 2025-08-26 — Backend packaging switched to Poetry; added `backend/pyproject.toml`; removed `requirements*.txt`; updated docs with Poetry run instructions; moved env templates into `backend/`. (ref: backend/pyproject.toml, backend/README.md, backend/AGENTS.md, backend/.env*)
+ - 2025-08-26 — Added minimal profiles schema and RLS (migration 0001); created Supabase runbook for migrations and verification; trimmed SCHEMA.md to profiles-only. (ref: backend/migrations/2025-08-26_0001_profiles.sql, backend/SUPABASE_RUNBOOK.md, backend/SCHEMA.md)
+ - 2025-08-26 — Profiles API: added GET/PUT `/me/profile`, Pydantic models, Supabase repository, and tests; enabled Supabase JWT auth (Authorization Bearer). (ref: backend/src/app/**/*, backend/tests/*)
 
 Template
 - YYYY-MM-DD — Short description of what changed and why. (ref: #<issue> / PR <link>)
@@ -30,12 +35,20 @@ Track work items using simple checklists. Move items between sections as work pr
 - [ ] Frontend: item actions placeholders (Save / More-like / Less-like) — frontend
 - [ ] Frontend: add e2e smoke (Playwright) — frontend
  - [ ] Frontend: Streams — support link embeds (e.g., YouTube) with improved layout; apply small visual tweaks to current streams — frontend
+ - [ ] Backend: decide Python framework and project skeleton — backend
+ - [ ] Backend: env loader and config module — backend
+ - [ ] Backend: DB client integration (Supabase/Postgres) — backend
+ - [ ] Backend: implement LLM adapter (baseline chat) — backend
+ - [ ] Backend: scheduler poller and jobs table migrations — backend
 
 ### In Progress
 - [ ] Frontend: visual polish pass and accessibility check — branch: feat/frontend-polish
+ - [ ] Backend: wire logging strategy and request context — backend
 
 ### Done
 - [ ] Frontend: scaffold + core pages — merged in init (local) on 2025-08-26
+ - [ ] Backend: scaffold docs and planning — 2025-08-26
+ - [ ] Backend: FastAPI app + env templates + Supabase client factory + tests — 2025-08-26
 
 Guidelines
 - Keep tasks actionable and testable; prefer TDD where feasible.
