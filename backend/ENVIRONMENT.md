@@ -33,6 +33,7 @@ LLM Providers (Adapter)
 Exa (Search + Contents)
 - EXA_API_KEY: Exa API key from https://dashboard.exa.ai (required to call /exa routes)
 - EXA_BASE_URL: Optional override; defaults to `https://api.exa.ai`
+ - DEV_TEST_USER_TOKEN: Optional Supabase JWT for a test user to run the agent loop locally without frontend. Do not commit real tokens.
 
 Notes
 - For neural/auto searches, we enforce `numResults ≤ 25` to stay within the low-cost tier.
@@ -63,6 +64,9 @@ Supabase Setup (quick start)
   - Copy the Service Role Key into `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
 - Optional: Database → Connection Strings → Postgres. Copy the URI into `POSTGRES_CONNECTION_STRING` if you prefer direct DB access.
 - Keep Row Level Security on (default). We will define policies with migrations later.
+
+Dev Test Token Generation
+cd backend & bash ./supa_mint_test_token.sh free@meme.com hehemama
 
 Change Log
 - 2025-08-26 — Initial environment matrix for DB, providers, scheduling, telemetry.

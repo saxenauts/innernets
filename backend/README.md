@@ -35,3 +35,9 @@ Development (Poetry)
 
 Next
 - Add logging strategy, DB migrations, scheduler worker, and expand LLM adapter (retries, rate limits, cost est.).
+
+Scheduler & Jobs (dev bring-up)
+- Apply migration 0002 in Supabase (SQL Editor): `backend/migrations/2025-08-27_0002_scheduler.sql`.
+- Add a test user token to `backend/.env` as `DEV_TEST_USER_TOKEN` (do not commit real tokens).
+- Enqueue and run jobs via the dev worker loop in tests (`backend/tests/test_jobs_worker.py`).
+- The agent loop lives at `src/app/agents/search_loop.py` and currently returns stub metrics; integration with Exa and the LLM adapter is next.

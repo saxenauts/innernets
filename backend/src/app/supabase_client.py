@@ -47,3 +47,11 @@ def get_user_supabase_client(token: str, url: Optional[str] = None, anon_key: Op
         if hasattr(client, "rest") and hasattr(client.rest, "auth"):
             client.rest.auth(token)  # type: ignore[attr-defined]
     return client
+
+
+def get_service_client() -> Client:  # type: ignore[name-defined]
+    """Alias for service-role Supabase client.
+
+    Exists for testability and to keep call sites simple in scheduler modules.
+    """
+    return get_supabase_client()

@@ -30,18 +30,26 @@ Phase 3 — LLM Adapter (Azure/OpenAI)
 - [ ] Optional: streaming support
 
 Phase 4 — Scheduler & Jobs
-- [ ] Create migrations for schedules/jobs/runs tables
+- [x] Create migrations for schedules/jobs/runs tables
 - [ ] Implement ticker (poller) and job enqueuer
 - [ ] Implement executor (idempotent run wrapper)
 - [ ] Observability: metrics + logs + run audit trail
 - [ ] Tests: idempotency, retry, cron/interval calculations
 
-Phase 5 — Search Agent (Exa-first)
+Phase 5 — Search Agent (Exa-first, SDK contract)
 - [ ] Define internal contracts for the two-step loop (inputs/outputs)
 - [ ] Implement Step A/B orchestration (no UI yet)
 - [ ] Persist queries/results and per-run metrics
+- [x] Backend Exa endpoints (search + contents), caps + cost metering
 - [ ] Guardrails: caps on queries/reads, novelty share
 - [ ] Tests: cost caps, latency budget, correctness invariants
+
+New — Job System Bring-up (dev)
+- [ ] Add scheduler usage docs with env (DEV_TEST_USER_TOKEN) and dev run instructions
+- [ ] Add `scheduler.jobs` helpers and `scheduler.worker` dev loop
+- [ ] Add `agents.search_loop` stub returning metrics
+- [ ] Add tests: enqueue/claim/execute finishes a run and marks job done
+- [ ] Add script/entry to run a one-shot job for a test user
 
 Phase X — Operations
 - [ ] Add simple CI (lint, type check, docs check)

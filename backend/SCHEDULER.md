@@ -16,6 +16,67 @@ Flow (initial)
 - Executor claims queued jobs and runs the Search Agent loop, writing a `runs` row and results.
 - Update schedule.next_run_at using cron/interval calculation.
 
+Usage (dev)
+- Create scheduler tables via migration 0002 (see `backend/migrations/2025-08-27_0002_scheduler.sql`).
+- Set `DEV_TEST_USER_TOKEN` in `backend/.env` to a Supabase access token for a test user.
+- The dev worker (`app.scheduler.worker.dev_loop`) will:
+  - call `ticker.tick()` to enqueue due work from `schedules`
+  - call `worker.run_once(handle_job)` to claim one job and execute the workflow
+- For now, Exa calls can be mocked in tests; when ready, set `EXA_API_KEY` and wire `agents.search_loop`.
+
+Contracts
+- Job payload: `{ "agent": "search_only_v1", "params": { "mission": string, "sources": string[]?, "hints": object?, "schedule_id"?: uuid } }`
+- Run metrics: `{ "queries": int, "reads": int, "cost_exa": number, "usage_tokens": {"prompt": int, "completion": int, "total": int } }`
+
+Minimal Interfaces
+- `jobs.enqueue(user_id, payload, schedule_id?, idempotency_key?)` → job row (upsert on idempotency_key)
+- `ticker.tick()` → enqueues jobs for due schedules and advances `next_run_at`
+- `jobs.claim(max=1)` → list[job] oldest queued
+- `jobs.mark_running(job_id)`; `jobs.mark_done(job_id, success|failed, error?)`
+- `runs.start(job_id)` → run row; `runs.finish(run_id, status, metrics?, error?)`
+
+Workflow vs. Loop
+- Each job executes a deterministic, acyclic workflow for the search agent:
+  1) Generate search queries (LLM)
+  2) Call Exa search
+  3) Filter candidates to read (LLM)
+  4) Call Exa content/ to read the candidates
+  5) Use previous context and suggest follow-ups search (LLM)
+  6) Search again with Exa
+  5) Compose and consolidate entirety of above as an output (LLM)
+- Steps run serially; outputs flow into the next step. Future prompt/schema changes should be isolated within `agents.search_loop` without changing scheduler contracts.
+
+Call Graph (dev)
+- `worker.dev_loop()`
+  - `ticker.tick()` → enqueues jobs (idempotent per minute window)
+  - `worker.run_once(handle_job)`
+    - `jobs.claim(limit=1)` → `jobs.start_run(job_id)`
+    - `handle_job(job)` → `agents.search_loop.run(job, user_token)`
+    - `runs.finish(run_id, status, metrics)` → `jobs.mark_done(job_id, success)`
+
+Dev Worker vs Production
+- Dev Worker (`dev_loop`):
+  - Purpose: local bring-up to exercise the full path (enqueue → claim → execute workflow → record metrics) without running the HTTP API or front‑end.
+  - Uses: service-role access for scheduler tables (schedules/jobs/runs). This bypasses RLS by design and is safe server-side.
+  - Optional `DEV_TEST_USER_TOKEN`: used only if the job’s workflow needs to access RLS-protected, user-owned tables (e.g., future per-user artifacts). For Exa and LLM calls we use server-side provider keys, so the token is not required today.
+  - Scope: single process can process jobs across all users; not per-user. It is a convenience loop for development.
+- Production Worker(s):
+  - One or more processes/containers running the same executor logic. Ticker may run in one instance; executor can be horizontally scaled.
+  - DB Access:
+    - Scheduler tables (schedules/jobs/runs): service role client (bypasses RLS) with least-privilege role.
+    - User-owned tables (if accessed during workflow): create a user-scoped client via `get_user_supabase_client(<user_jwt>)` to honor RLS, or write via controlled service-role APIs with explicit policies.
+  - Provider Calls: Exa via `EXA_API_KEY`; LLM via Azure/OpenAI keys. User JWTs are not needed for provider calls unless you design per-user provider credentials later.
+
+Why `DEV_TEST_USER_TOKEN`?
+- Your HTTP routes (e.g., `/exa/*`) enforce `Authorization: Bearer <supabase_access_token>` with audience checks. The dev worker does not call these HTTP routes; it calls Exa SDK directly. Therefore, a user token is not needed for Exa.
+- If/when the workflow needs to read/write user‑scoped data under RLS (e.g., user memory, saved items), we’ll use `get_user_supabase_client(<token>)`. The token in env lets the dev worker simulate that context without the front‑end.
+- You can mint this via your `backend/supa_mind_test_token.sh` script. Profile creation is optional; an Auth user exists independently of `profiles`. If needed, create a `profiles` row via the Profiles API or migration snippet.
+
+Lifecycle Summary
+- Enqueue: ticker selects due schedules and enqueues jobs with an idempotency key (minute bucket) to avoid duplicates.
+- Execute: worker claims the oldest queued job, starts a run, executes the deterministic workflow, finishes the run with metrics, and marks the job as succeeded/failed.
+- Advance: ticker advances `next_run_at` per cadence. We start with PT-style intervals (PT30M/PT1H); cron support can be added later without changing public interfaces.
+
 Concurrency & Idempotency
 - Use DB-row locks to prevent multi-claim in concurrent workers.
 - Generate deterministic `idempotency_key` for (schedule_id, window) to avoid duplicates.

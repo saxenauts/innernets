@@ -44,10 +44,19 @@ Contract choice
 ## Cost & Guardrails
 
 - Exa includes `costDollars` in responses; our API forwards it as `provider_cost`.
-- Defaults encourage low cost per docs/search-only-plan.md:
-  - Prefer `keyword` for most queries; use `neural` selectively.
-  - Avoid `highlights` and `summary` unless needed (each adds ~$0.001/page).
-  - Optionally cap `text.maxCharacters` to control payload size.
+- Defaults encourage low cost per docs/search-only-plan.md.
+
+### Pricing (simple)
+- Search requests (≤100 results):
+  - keyword: about $0.0025 per request
+  - neural/auto (≤25 results): about $0.0050 per request
+  - neural/auto (26–100 results): pricier tier (avoid by keeping `num_results ≤ 25`).
+- Contents per page (each option adds cost):
+  - text: ~$0.001 per page
+  - highlights: ~$0.001 per page
+  - summary: ~$0.001 per page
+- Example: 10 keyword results + read text for 5 pages ≈ $0.0025 + (5 × $0.001) = $0.0075
+- We meter exact cost via `provider_cost.total` in responses.
 
 ## Auth
 
