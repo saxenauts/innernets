@@ -30,6 +30,14 @@ LLM Providers (Adapter)
 - AZURE_OPENAI_DEPLOYMENT_NAME: Azure deployment name (e.g., `gpt-4o-mini`). Only this variable is used.
   - Azure specifics: Some deployments (e.g., `gpt-5`) require `temperature=1.0` and do not accept `max_tokens` in Chat Completions. The adapter accounts for this automatically.
 
+Exa (Search + Contents)
+- EXA_API_KEY: Exa API key from https://dashboard.exa.ai (required to call /exa routes)
+- EXA_BASE_URL: Optional override; defaults to `https://api.exa.ai`
+
+Notes
+- For neural/auto searches, we enforce `numResults ≤ 25` to stay within the low-cost tier.
+- Our API responses include `provider_cost` mirroring Exa's `costDollars` breakdown.
+
 LLM Adapter Options (per request)
 - tool_choice: `auto` | `required` | `none` | `function` (we default to function-first; force a specific tool when deterministic)
 - strict: enable schema-conformant arguments (recommended true)

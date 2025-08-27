@@ -33,6 +33,10 @@ class Settings:
         # Azure deployment name (canonical)
         self.AZURE_OPENAI_DEPLOYMENT_NAME: Optional[str] = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
+        # Exa
+        self.EXA_API_KEY: Optional[str] = os.getenv("EXA_API_KEY")
+        self.EXA_BASE_URL: str = os.getenv("EXA_BASE_URL", "https://api.exa.ai")
+
         # Supabase Auth
         self.SUPABASE_JWT_SECRET: Optional[str] = os.getenv("SUPABASE_JWT_SECRET")
         self.SUPABASE_JWT_AUD: str = os.getenv("SUPABASE_JWT_AUD", "authenticated")

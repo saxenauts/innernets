@@ -96,6 +96,12 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Data access: user-scoped Supabase client (RLS enforced). We build a per-request client with `SUPABASE_ANON_KEY` and set the user's token on PostgREST.
 - Service-role usage: reserved for internal jobs and migrations; not used in user endpoints.
 
+## Exa Search API
+- Endpoints: `POST /exa/search`, `POST /exa/contents` (see `src/app/routes/exa.py`).
+- SDK: uses official `exa-py` via `app/clients/exa_client.py`.
+- Caps: enforce `numResults ≤ 25` for `neural/auto`, `≤ 100` for `keyword` per docs/search-only-plan.md.
+- Responses include `provider_cost` (mirrors Exa `costDollars`).
+
 ## How to Contribute (docs-first)
 - Update the relevant spec in `backend/*` and the index in `AGENTS.md`.
 - Update `backend/SCHEMA.md` when data shapes change.

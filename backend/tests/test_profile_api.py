@@ -19,6 +19,8 @@ def test_get_profile_not_found(monkeypatch):
 
     from app.main import app
     client = TestClient(app)
+    # Clear any overrides from other tests
+    app.dependency_overrides.clear()
 
     r = client.get("/me/profile", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 404

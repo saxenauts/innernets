@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from .routes import profile as profile_routes
+from .routes import exa as exa_routes
 
 
 load_dotenv(os.getenv("DOTENV_PATH", ".env"), override=False)
@@ -24,3 +25,4 @@ def root():
 
 
 app.include_router(profile_routes.router)
+app.include_router(exa_routes.router)
