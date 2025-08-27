@@ -17,6 +17,7 @@ Code
 - `src/app/repositories/profile_repo.py` — Supabase repository for profiles
 - `src/app/routes/profile.py` — Profiles endpoints (GET/PUT `/me/profile`)
 - `src/app/llm/*` — Function-first LLM adapter (providers, tools, types)
+- `src/app/clients/exa_client.py` — Thin wrapper over `exa-py` for workers (no public routes)
 - `tests/` — pytest tests for health, profiles, client creation, and LLM adapter
 
 Service Plan

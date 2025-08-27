@@ -40,9 +40,10 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Jobs & Runs: queued work and execution records with idempotency keys and metrics.
 - Queries, Sources, Results: capture inputs and outcomes for auditability and learning.
 
-## API & Contracts (early outline)
-- Internal contracts first; public HTTP contracts later.
-- Request/response examples to live in docs before endpoints exist.
+## API & Contracts (typed via Pydantic)
+- Rule: service boundaries return and accept Pydantic models — no plain dicts.
+- Internal contracts first; public HTTP contracts later if needed.
+- Request/response examples belong in docs and Pydantic classes in code.
 - Stable error model (see “Error Model” below) across providers and services.
 
 ## Error Model (baseline)
@@ -96,15 +97,16 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Data access: user-scoped Supabase client (RLS enforced). We build a per-request client with `SUPABASE_ANON_KEY` and set the user's token on PostgREST.
 - Service-role usage: reserved for internal jobs and migrations; not used in user endpoints.
 
-## Exa Search API (SDK-first)
-- Endpoints: `POST /exa/search`, `POST /exa/contents` (see `src/app/routes/exa.py`).
-- Contract: follows Python SDK (snake_case, top-level `text/highlights/summary`).
-- SDK: official `exa-py` via `app/clients/exa_client.py`.
+## Exa Search (SDK-first, no public routes)
+- Workers call a thin service wrapper over `exa-py` (`app/clients/exa_client.py`).
+- Contract: Python SDK signature (snake_case, top-level `text/highlights/summary`).
+- Models: Pydantic response types in `app/clients/exa_schemas.py` (`SearchResponse`, `ContentsResponse`, etc.).
 - Caps: enforce `num_results ≤ 25` for `neural/auto`, `≤ 100` for `keyword` per plan.
-- Responses: Pydantic-typed; include `provider_cost` (mirrors Exa `costDollars`).
+- Attribution: attribute costs to `jobs.user_id` via run metrics; no user JWT required for provider calls.
 
 ## How to Contribute (docs-first)
 - Update the relevant spec in `backend/*` and the index in `AGENTS.md`.
 - Update `backend/SCHEMA.md` when data shapes change.
 - Log changes and move tasks in `docs/updates.md`.
 - Prompt architecture: adopt JSON Schema-guided prompts for all functions; centralize and refactor prompt templates after functions are stable.
+- Agents rule: return Pydantic models at boundaries (no plain dicts); define schemas alongside agents.

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from exa_py import Exa
 
 from ..config import settings
+from .exa_schemas import SearchResponse, ContentsResponse
 
 
 class ExaClient:
@@ -21,70 +22,37 @@ class ExaClient:
             self._exa = Exa(key)
 
     # Search + optional contents (SDK-first, snake_case)
-    def search_and_contents(self, **kwargs: Any) -> Dict[str, Any]:
+    def search(self, **kwargs: Any) -> SearchResponse:
         t = kwargs.get("type", "auto")
-        n = kwargs.get("num_results", 10)
+        # Default to 25 to stay in the low-cost tier for neural/auto
+        n = kwargs.get("num_results", 25)
+        kwargs["num_results"] = n
+        if t in {"neural", "auto"} and n > 25:
+            raise ValueError("num_results must be ≤ 25 for neural/auto per cost cap")
+        if t == "keyword" and n > 100:
+            raise ValueError("num_results must be ≤ 100 for keyword searches")
+        res = self._exa.search(**kwargs)
+        rd = _to_plain(res)
+        return SearchResponse(**rd)
+
+    def search_and_contents(self, **kwargs: Any) -> SearchResponse:
+        t = kwargs.get("type", "auto")
+        # Default to 25 to stay in the low-cost tier for neural/auto
+        n = kwargs.get("num_results", 25)
+        kwargs["num_results"] = n
         if t in {"neural", "auto"} and n > 25:
             raise ValueError("num_results must be ≤ 25 for neural/auto per cost cap")
         if t == "keyword" and n > 100:
             raise ValueError("num_results must be ≤ 100 for keyword searches")
         res = self._exa.search_and_contents(**kwargs)
-        return _to_plain(res)
-
-    def search_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        """Accept Exa JSON (camelCase per docs), convert, and call SDK.
-
-        This keeps routes aligned with Exa's OpenAPI while we use the Python SDK.
-        """
-        def camel_to_snake(name: str) -> str:
-            out = []
-            for ch in name:
-                if ch.isupper():
-                    out.append('_')
-                    out.append(ch.lower())
-                else:
-                    out.append(ch)
-            s = ''.join(out).lstrip('_')
-            return s
-
-        def snakecase_dict(d: Dict[str, Any]) -> Dict[str, Any]:
-            out: Dict[str, Any] = {}
-            for k, v in d.items():
-                nk = camel_to_snake(k)
-                if isinstance(v, dict):
-                    out[nk] = snakecase_dict(v)
-                elif isinstance(v, list):
-                    out[nk] = [snakecase_dict(x) if isinstance(x, dict) else x for x in v]
-                else:
-                    out[nk] = v
-            return out
-
-        d = snakecase_dict(body)
-        # Expand contents.* to top-level args expected by SDK
-        contents = d.pop("contents", None)
-        if isinstance(contents, dict):
-            # normalize extras.imageLinks -> image_links
-            extras = contents.get("extras")
-            if isinstance(extras, dict):
-                if "imagelinks" in extras:
-                    extras = dict(extras)
-                    extras["image_links"] = extras.pop("imagelinks")
-                    contents["extras"] = extras
-            d.update(contents)
-
-        # Caps enforcement
-        if d.get("type") in {"neural", "auto"} and d.get("num_results", 0) > 25:
-            raise ValueError("numResults must be ≤ 25 for neural/auto per cost cap")
-        if d.get("type") == "keyword" and d.get("num_results", 0) > 100:
-            raise ValueError("numResults must be ≤ 100 for keyword searches")
-
-        res = self._exa.search_and_contents(**d)
-        return _to_plain(res)  # type: ignore[no-any-return]
+        rd = _to_plain(res)
+        return SearchResponse(**rd)
 
     # Contents by URL list
-    def get_contents(self, **kwargs: Any) -> Dict[str, Any]:
+    def get_contents(self, **kwargs: Any) -> ContentsResponse:
         res = self._exa.get_contents(**kwargs)
-        return _to_plain(res)
+        rd = _to_plain(res)
+        return ContentsResponse(**rd)
 
 
 _client: Optional[ExaClient] = None

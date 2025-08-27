@@ -12,21 +12,18 @@ This backend integrates Exa (search engine for AIs) via the official Python SDK 
 - Start the API:
   - `poetry run uvicorn app.main:app --reload`
 
-## Endpoints (SDK-first contract)
+## Service Wrapper (SDK-first)
 
-- POST `/exa/search`
-  - Body (minimal): `{ "query": "Latest research in LLMs", "type": "keyword", "num_results": 10, "text": true }`
-  - All parameters follow the Python SDK (snake_case, top-level):
-    - `num_results`, `include_domains`, `exclude_domains`,
-      `start_crawl_date`, `end_crawl_date`, `start_published_date`, `end_published_date`,
-      `text` | `highlights` | `summary`, `subpages`, `subpage_target`, `livecrawl`, `livecrawl_timeout`, `extras`.
-  - Returns (typed): `requestId`, `resolvedSearchType`, `results: ResultWithContent[]`, `searchType`, optional `context`, and `provider_cost: CostDollars`.
-  - Caps: `num_results ≤ 25` for `neural/auto`; `≤ 100` for `keyword`.
+Workers call our thin wrapper around `exa-py` (no public HTTP routes):
 
-- POST `/exa/contents`
-  - Body (minimal): `{ "urls": ["https://example.com"], "text": true }`
-  - Parameters follow SDK (snake_case): `livecrawl_timeout`, `subpage_target`, etc.
-  - Returns (typed): `requestId`, `results: ResultWithContent[]`, optional `statuses`, optional `context`, and `provider_cost`.
+- `ExaClient.search_and_contents(query, type, num_results, text|highlights|summary, ...)`
+- `ExaClient.get_contents(urls, text|highlights|summary, ...)`
+
+Contract & caps
+- Use the Python SDK signature (snake_case) and pass only documented fields.
+- Enforce caps per `docs/search-only-plan.md`:
+  - `num_results ≤ 25` for `neural/auto`
+  - `num_results ≤ 100` for `keyword`
 
 ## SDK Reference
 
@@ -60,33 +57,42 @@ Contract choice
 
 ## Auth
 
-- All `/exa/*` routes require Supabase JWT (`Authorization: Bearer <access_token>`). For local testing in pytest, we override the dependency.
+- No user JWT is required for Exa; calls are executed with `EXA_API_KEY` set in server environment.
+- Worker attribution: costs are recorded under the job’s `user_id` in run metrics.
 
-## Examples
+## Example (Python)
 
-curl — Search + Text Contents
+from app.clients.exa_client import get_exa_client
 
-curl --request POST \
-  --url http://localhost:8000/exa/search \
-  --header 'Authorization: Bearer <SUPABASE_ACCESS_TOKEN>' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "query": "Latest research in LLMs",
-    "type": "keyword",
-    "numResults": 10,
-    "contents": { "text": true }
-  }'
+exa = get_exa_client()
+res = exa.search_and_contents(
+    query="latest banana model from google",
+    type="keyword",
+    num_results=3,
+    text={"max_characters": 1500},
+)
+first = (res.get("results") or [])[0]
+print(first.get("title"), first.get("url"))
 
-curl — Contents Only
+res2 = exa.get_contents(urls=[first["url"]], text={"max_characters": 1500})
+print(len(res2.get("results") or []), "pages")
 
-curl --request POST \
-  --url http://localhost:8000/exa/contents \
-  --header 'Authorization: Bearer <SUPABASE_ACCESS_TOKEN>' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "urls": ["https://arxiv.org/abs/2307.06435"],
-    "text": true
-  }'
+---
+
+Appendix: Exa Python SDK Reference (subset)
+
+The following is a condensed version of the Exa Python SDK spec for quick reference. See the official docs for full details.
+
+- `exa.search(query, num_results=10, include_domains=None, exclude_domains=None, start_crawl_date=None, end_crawl_date=None, start_published_date=None, end_published_date=None, type="auto", category=None, context=None)` → SearchResponse[Result]
+
+- `exa.search_and_contents(query, text: Union[bool, TextOptions]=None, highlights: Union[bool, HighlightsOptions]=None, num_results=10, include_domains=None, exclude_domains=None, start_crawl_date=None, end_crawl_date=None, start_published_date=None, end_published_date=None, type="auto", category=None, context=None)` → SearchResponse[ResultWithText/Highlights/Both]
+
+- `exa.get_contents(urls: List[str], text: Union[bool, TextOptions]=None, highlights: Union[bool, HighlightsOptions]=None, summary: Optional[Dict]=None, livecrawl: Optional[str]=None, livecrawl_timeout: Optional[int]=None, subpages: Optional[int]=0, subpage_target: Optional[Union[str, List[str]]]=None, extras: Optional[Dict]=None, context: Optional[Union[bool, Dict[str, int]]]=None)` → ContentsResponse
+
+Pricing-friendly defaults we use:
+- Default `num_results=25` for `neural/auto` to stay in lower tier; enforce `≤ 25`.
+- Allow `keyword` up to `100`, but keep payloads modest to control cost.
+- Prefer `text` only for reads; avoid highlights/summary unless specifically needed.
 
 ## Troubleshooting
 

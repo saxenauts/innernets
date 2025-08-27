@@ -1,8 +1,5 @@
 import os
-import time
-
 import pytest
-from fastapi.testclient import TestClient
 
 
 @pytest.mark.live
@@ -12,40 +9,25 @@ def test_exa_live_search_and_contents():
     if not os.getenv("EXA_API_KEY"):
         pytest.skip("Missing EXA_API_KEY in environment")
 
-    from app.main import app
-    from app import auth as auth_mod
+    from app.clients.exa_client import get_exa_client
 
-    # Bypass Supabase JWT verification for local live run
-    app.dependency_overrides[auth_mod.get_current_user_id] = lambda Authorization=None: "live-user"
-    client = TestClient(app)
-
-    # Keep costs tiny: 1 result, keyword search, text only
-    payload = {
-        "query": "arxiv 2307.06435 Large Language Models",
-        "type": "keyword",
-        "num_results": 1,
-        "text": {"max_characters": 2000},
-    }
-
-    r = client.post("/exa/search", json=payload, headers={"Authorization": "Bearer dummy"})
-    assert r.status_code == 200, r.text
-    data = r.json()
-    assert data.get("provider_cost") is not None
-    results = data.get("results") or []
-    assert len(results) >= 1
-    first = results[0]
-    assert "url" in first
-
-    # Contents endpoint on the first URL (cheap: 1 page, text only)
-    url = first["url"]
-    r2 = client.post(
-        "/exa/contents",
-        json={"urls": [url], "text": {"max_characters": 2000}},
-        headers={"Authorization": "Bearer dummy"},
+    exa = get_exa_client()
+    # Keep costs tiny: few results, keyword search, text only
+    data = exa.search_and_contents(
+        query="latest banana model from google",
+        type="keyword",
+        num_results=3,
+        text={"max_characters": 1500},
     )
-    assert r2.status_code == 200, r2.text
-    body2 = r2.json()
-    assert body2.get("provider_cost") is not None
-    assert isinstance(body2.get("results"), list)
-    # Clear overrides
-    app.dependency_overrides.clear()
+    results = data.results or []
+    assert len(results) >= 1
+    url = results[0].url
+    assert url and isinstance(url, str)
+
+    body2 = exa.get_contents(urls=[url], text={"max_characters": 1500})
+    # Print a small slice so we can see output when -s is used
+    first = (body2.results or [])[0] if body2.results else None
+    if first and first.text:
+        print("EXA_FIRST_URL:", url)
+        print("EXA_FIRST_TEXT_SNIPPET:", first.text[:200])
+    assert isinstance(body2.results, list)

@@ -31,7 +31,7 @@ LLM Providers (Adapter)
   - Azure specifics: Some deployments (e.g., `gpt-5`) require `temperature=1.0` and do not accept `max_tokens` in Chat Completions. The adapter accounts for this automatically.
 
 Exa (Search + Contents)
-- EXA_API_KEY: Exa API key from https://dashboard.exa.ai (required to call /exa routes)
+- EXA_API_KEY: Exa API key from https://dashboard.exa.ai (required for workers)
 - EXA_BASE_URL: Optional override; defaults to `https://api.exa.ai`
  - DEV_TEST_USER_TOKEN: Optional Supabase JWT for a test user to run the agent loop locally without frontend. Do not commit real tokens.
 
