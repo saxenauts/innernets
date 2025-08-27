@@ -47,7 +47,7 @@ Phase 5 — Search Agent (Exa-first, SDK contract)
 New — Job System Bring-up (dev)
 - [ ] Add scheduler usage docs with env (DEV_TEST_USER_TOKEN) and dev run instructions
 - [ ] Add `scheduler.jobs` helpers and `scheduler.worker` dev loop
-- [ ] Add `agents.search_loop` stub returning metrics
+- [x] Add `agents.search_workflow` orchestration with metrics
 - [ ] Add tests: enqueue/claim/execute finishes a run and marks job done
 - [ ] Add script/entry to run a one-shot job for a test user
 

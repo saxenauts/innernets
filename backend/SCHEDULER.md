@@ -22,7 +22,7 @@ Usage (dev)
 - The dev worker (`app.scheduler.worker.dev_loop`) will:
   - call `ticker.tick()` to enqueue due work from `schedules`
   - call `worker.run_once(handle_job)` to claim one job and execute the workflow
-- For now, Exa calls can be mocked in tests; when ready, set `EXA_API_KEY` and wire `agents.search_loop`.
+- For now, Exa calls can be mocked in tests; when ready, set `EXA_API_KEY` and call `agents.search_workflow.run`.
 
 Contracts
 - Job payload: `{ "agent": "search_only_v1", "params": { "mission": string, "sources": string[]?, "hints": object?, "schedule_id"?: uuid } }`
@@ -44,14 +44,14 @@ Workflow vs. Loop
   5) Use previous context and suggest follow-ups search (LLM)
   6) Search again with Exa
   5) Compose and consolidate entirety of above as an output (LLM)
-- Steps run serially; outputs flow into the next step. Future prompt/schema changes should be isolated within `agents.search_loop` without changing scheduler contracts.
+- Steps run serially; outputs flow into the next step. Future prompt/schema changes should be isolated within `agents/search_workflow` without changing scheduler contracts.
 
 Call Graph (dev)
 - `worker.dev_loop()`
   - `ticker.tick()` → enqueues jobs (idempotent per minute window)
   - `worker.run_once(handle_job)`
     - `jobs.claim(limit=1)` → `jobs.start_run(job_id)`
-    - `handle_job(job)` → `agents.search_loop.run(job, user_token)`
+    - `handle_job(job)` → `agents.search_workflow.run(job, user_token)`
     - `runs.finish(run_id, status, metrics)` → `jobs.mark_done(job_id, success)`
 
 Dev Worker vs Production

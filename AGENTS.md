@@ -13,7 +13,7 @@
 
 ## Professional Standards (Frontend & Backend)
 - Frontend: accessible (WCAG-aware), responsive, consistent design tokens, performance budgets, semantic HTML, typed code where applicable.
-- Backend: clear API contracts, input validation, structured logging, idempotent handlers, least-privilege access, predictable error models.
+- Backend: clear API contracts, input validation, structured logging, idempotent handlers, least-privilege access, predictable error models, and Pydantic models at service boundaries (no plain dicts).
 - Shared: avoid secrets in repo, follow OWASP basics, document configuration and operational runbooks.
 
 ## Testing & TDD

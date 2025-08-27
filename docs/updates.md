@@ -3,8 +3,9 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
-- 2025-08-27 — Pivoted to SDK-first Exa API (snake_case). Implemented `/exa/search` and `/exa/contents` via `exa-py`, added typed responses, cost reporting, and caps; updated usage docs and live test. (ref: backend/src/app/routes/exa.py, backend/src/app/clients/exa_client.py, backend/EXA_USAGE.md, backend/tests/test_exa_routes.py, backend/tests/test_exa_live.py)
+- 2025-08-27 — Refined Exa integration: removed public `/exa/*` routes; workers call `exa-py` directly via `ExaClient`. Updated docs and tests accordingly. (ref: backend/src/app/clients/exa_client.py, backend/EXA_USAGE.md)
 - 2025-08-27 — Backend LLM adapter implemented (function-first, Azure); added tool registry, unit tests with mocked HTTP, and updated backend docs/env templates. (ref: backend/src/app/llm/*, backend/tests/test_llm_adapter.py, backend/LLM_ADAPTER.md, backend/ENVIRONMENT.md)
+- 2025-08-27 — Scheduler groundwork: added DB schema (schedules, jobs, runs), env hook for dev test user token, and worker/agent stubs to execute jobs. (ref: backend/migrations/2025-08-27_0002_scheduler.sql, backend/src/app/scheduler/*, backend/src/app/agents/search_workflow.py, backend/SCHEDULER.md, backend/ENVIRONMENT.md, backend/TODO.md)
 - 2025-08-26 — Refactored Onboarding and missing-state views to shadcn/Tailwind styles; removed legacy class usage causing “old UI”. (ref: frontend/src/pages/Onboarding.tsx, frontend/src/pages/StreamView.tsx)
 - 2025-08-26 — Added token-styled Select component and replaced native select for cadence; removed unused CSS/components; aligned Tailwind v4 import; deleted duplicate Tailwind config. (ref: frontend/src/components/ui/select.tsx, frontend/src/pages/Onboarding.tsx, frontend/src/styles/globals.css)
  - 2025-08-26 — Select menu surface made opaque (no bleed-through), added optional `sources` field to onboarding, and updated docs (design + agents) to a minimal playbook. (ref: frontend/src/components/ui/select.tsx, frontend/src/pages/Onboarding.tsx, frontend/design.md, frontend/AGENTS.md)
@@ -46,6 +47,7 @@ Track work items using simple checklists. Move items between sections as work pr
 ### In Progress
 - [ ] Frontend: visual polish pass and accessibility check — branch: feat/frontend-polish
  - [ ] Backend: wire logging strategy and request context — backend
+ - [ ] Backend: job system bring-up (enqueue/claim/execute/run) — backend
 
 ### Done
 - [ ] Frontend: scaffold + core pages — merged in init (local) on 2025-08-26
