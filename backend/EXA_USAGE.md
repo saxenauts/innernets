@@ -12,29 +12,21 @@ This backend integrates Exa (search engine for AIs) via the official Python SDK 
 - Start the API:
   - `poetry run uvicorn app.main:app --reload`
 
-## Endpoints
+## Endpoints (SDK-first contract)
 
 - POST `/exa/search`
-  - Mirrors Exa `/search` with optional `contents` block to fetch text alongside results.
-  - Body (minimal): `{ "query": "Latest research in LLMs", "type": "keyword", "numResults": 10, "contents": { "text": true } }`
-  - Returns (typed):
-    - `requestId: string`
-    - `resolvedSearchType: string`
-    - `results: ResultWithContent[]`
-    - `searchType: string`
-    - `context?: string`
-    - `provider_cost: CostDollars` (mirrors Exa `costDollars` schema)
-  - Caps: `numResults ≤ 25` for `neural/auto`; `≤ 100` for `keyword`.
+  - Body (minimal): `{ "query": "Latest research in LLMs", "type": "keyword", "num_results": 10, "text": true }`
+  - All parameters follow the Python SDK (snake_case, top-level):
+    - `num_results`, `include_domains`, `exclude_domains`,
+      `start_crawl_date`, `end_crawl_date`, `start_published_date`, `end_published_date`,
+      `text` | `highlights` | `summary`, `subpages`, `subpage_target`, `livecrawl`, `livecrawl_timeout`, `extras`.
+  - Returns (typed): `requestId`, `resolvedSearchType`, `results: ResultWithContent[]`, `searchType`, optional `context`, and `provider_cost: CostDollars`.
+  - Caps: `num_results ≤ 25` for `neural/auto`; `≤ 100` for `keyword`.
 
 - POST `/exa/contents`
-  - Mirrors Exa `/contents` for a list of URLs.
   - Body (minimal): `{ "urls": ["https://example.com"], "text": true }`
-  - Returns (typed):
-    - `requestId: string`
-    - `results: ResultWithContent[]`
-    - `statuses?: { id: string, status: 'success'|'error', error?: { tag: string, httpStatusCode?: number } }[]`
-    - `context?: string`
-    - `provider_cost: CostDollars`
+  - Parameters follow SDK (snake_case): `livecrawl_timeout`, `subpage_target`, etc.
+  - Returns (typed): `requestId`, `results: ResultWithContent[]`, optional `statuses`, optional `context`, and `provider_cost`.
 
 ## SDK Reference
 
@@ -45,10 +37,9 @@ Under the hood we use `exa-py` from `app/clients/exa_client.py`:
 
 These map to Exa’s `/search` and `/contents` endpoints respectively. We pass through most documented fields.
 
-Contract fidelity
-- Public API follows Exa docs (camelCase JSON, nested `contents`).
-- Internally we use the Python SDK (snake_case). A small adapter converts request fields once and normalizes SDK responses.
-- Routes validate into Pydantic models so downstream always receives typed data.
+Contract choice
+- We use the Python SDK as the reference. Public API uses snake_case and top-level fields to match SDK signatures exactly.
+- Responses are normalized to plain dicts and validated into Pydantic models, so downstream always receives typed data.
 
 ## Cost & Guardrails
 

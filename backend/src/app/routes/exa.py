@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from ..auth import get_current_user_id
 from ..clients.exa_client import get_exa_client
@@ -22,8 +22,8 @@ class _BaseModel(BaseModel):
 
 
 class HighlightsReq(_BaseModel):
-    numSentences: int = 5
-    highlightsPerUrl: int = 1
+    num_sentences: int = 5
+    highlights_per_url: int = 1
     query: Optional[str] = None
 
 
@@ -33,41 +33,45 @@ class SummaryReq(_BaseModel):
 
 
 class TextReq(_BaseModel):
-    maxCharacters: Optional[int] = Field(default=None, ge=100, le=200_000)
-    includeHtmlTags: bool = False
+    max_characters: Optional[int] = Field(default=None, ge=100, le=200_000)
+    include_html_tags: bool = False
 
 
-class ContentsReq(_BaseModel):
+class ContentsOptions(_BaseModel):
     text: Optional[Union[bool, TextReq]] = None
     highlights: Optional[HighlightsReq] = None
     summary: Optional[SummaryReq] = None
     livecrawl: Optional[Literal["never", "fallback", "always", "preferred"]] = None
-    livecrawlTimeout: Optional[int] = Field(default=None, ge=100, le=60_000)
+    livecrawl_timeout: Optional[int] = Field(default=None, ge=100, le=60_000)
     subpages: Optional[int] = Field(default=0, ge=0, le=10)
-    subpageTarget: Optional[Union[str, List[str]]] = None
+    subpage_target: Optional[Union[str, List[str]]] = None
     extras: Optional[Dict[str, Any]] = None
     context: Optional[Union[bool, Dict[str, int]]] = None
 
 
 class SearchRequest(_BaseModel):
+    # SDK-first (snake_case, top-level options)
     query: str
     type: SearchType = "auto"
     category: Optional[str] = None
-    userLocation: Optional[str] = None
-    numResults: int = 10
-    includeDomains: Optional[List[str]] = None
-    excludeDomains: Optional[List[str]] = None
-    startCrawlDate: Optional[str] = None
-    endCrawlDate: Optional[str] = None
-    startPublishedDate: Optional[str] = None
-    endPublishedDate: Optional[str] = None
-    includeText: Optional[List[str]] = None
-    excludeText: Optional[List[str]] = None
+    num_results: int = 10
+    include_domains: Optional[List[str]] = None
+    exclude_domains: Optional[List[str]] = None
+    start_crawl_date: Optional[str] = None
+    end_crawl_date: Optional[str] = None
+    start_published_date: Optional[str] = None
+    end_published_date: Optional[str] = None
     context: Optional[Union[bool, Dict[str, int]]] = None
     moderation: Optional[bool] = False
-    contents: Optional[ContentsReq] = None
-
-    # Validation of caps is handled in the route to return 400 (not 422)
+    # contents flattened per SDK
+    text: Optional[Union[bool, TextReq]] = None
+    highlights: Optional[Union[bool, HighlightsReq]] = None
+    summary: Optional[SummaryReq] = None
+    subpages: Optional[int] = Field(default=0, ge=0, le=10)
+    subpage_target: Optional[Union[str, List[str]]] = None
+    livecrawl: Optional[Literal["never", "fallback", "always", "preferred"]] = None
+    livecrawl_timeout: Optional[int] = Field(default=None, ge=100, le=60_000)
+    extras: Optional[Dict[str, Any]] = None
 
 
 class Result(_BaseModel):
@@ -136,12 +140,12 @@ class SearchResponse(_BaseModel):
 class ContentsRequest(_BaseModel):
     urls: List[str]
     text: Optional[Union[bool, TextReq]] = True
-    highlights: Optional[HighlightsReq] = None
+    highlights: Optional[Union[bool, HighlightsReq]] = None
     summary: Optional[SummaryReq] = None
     livecrawl: Optional[Literal["never", "fallback", "always", "preferred"]] = None
-    livecrawlTimeout: Optional[int] = Field(default=None, ge=100, le=60_000)
+    livecrawl_timeout: Optional[int] = Field(default=None, ge=100, le=60_000)
     subpages: Optional[int] = Field(default=0, ge=0, le=10)
-    subpageTarget: Optional[Union[str, List[str]]] = None
+    subpage_target: Optional[Union[str, List[str]]] = None
     extras: Optional[Dict[str, Any]] = None
     context: Optional[Union[bool, Dict[str, int]]] = None
 
@@ -185,26 +189,14 @@ def _pick(d: Dict[str, Any], *keys: str) -> Any:
 @router.post("/search", response_model=SearchResponse)
 async def exa_search(req: SearchRequest, user_id: str = Depends(get_current_user_id)):
     # Enforce caps per plan with 400 (Bad Request)
-    if req.type in {"neural", "auto"} and req.numResults > 25:
-        raise HTTPException(status_code=400, detail="numResults must be ≤ 25 for neural/auto searches")
-    if req.type == "keyword" and req.numResults > 100:
-        raise HTTPException(status_code=400, detail="numResults must be ≤ 100 for keyword searches")
-
-    contents_payload: Optional[Dict[str, Any]] = None
-    if req.contents is not None:
-        contents_payload = req.contents.model_dump(exclude_none=True)
-        # Default to text-only if user sets empty contents
-        if "text" not in contents_payload:
-            contents_payload["text"] = True
+    if req.type in {"neural", "auto"} and req.num_results > 25:
+        raise HTTPException(status_code=400, detail="num_results must be ≤ 25 for neural/auto searches")
+    if req.type == "keyword" and req.num_results > 100:
+        raise HTTPException(status_code=400, detail="num_results must be ≤ 100 for keyword searches")
 
     try:
         client = get_exa_client()
-        # Keep route close to Exa docs: pass body as-is and let client convert
-        body = req.model_dump(exclude_none=True)
-        # Ensure contents defaults to text-only when present but empty
-        if "contents" in body and body["contents"] is not None:
-            body["contents"].setdefault("text", True)
-        result = client.search_json(body)
+        result = client.search_and_contents(**req.model_dump(exclude_none=True))
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:  # SDK/network error
@@ -224,11 +216,9 @@ async def exa_search(req: SearchRequest, user_id: str = Depends(get_current_user
 
 @router.post("/contents", response_model=ContentsResponse)
 async def exa_contents(req: ContentsRequest, user_id: str = Depends(get_current_user_id)):
-    client = get_exa_client()
     try:
         client = get_exa_client()
-        body = req.model_dump(exclude_none=True)
-        result = client.contents_json(body)
+        result = client.get_contents(**req.model_dump(exclude_none=True))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Exa error: {e}")
 

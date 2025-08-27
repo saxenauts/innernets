@@ -25,7 +25,7 @@ def test_search_validation_caps(monkeypatch):
         # Neural with >25 should 400
         resp = client.post(
             "/exa/search",
-            json={"query": "q", "type": "neural", "numResults": 26},
+            json={"query": "q", "type": "neural", "num_results": 26},
             headers=_auth_headers(),
         )
         assert resp.status_code == 400
@@ -33,7 +33,7 @@ def test_search_validation_caps(monkeypatch):
         # Keyword with 101 should 400
         resp = client.post(
             "/exa/search",
-            json={"query": "q", "type": "keyword", "numResults": 101},
+            json={"query": "q", "type": "keyword", "num_results": 101},
             headers=_auth_headers(),
         )
         assert resp.status_code == 400
@@ -70,15 +70,14 @@ def test_search_happy_path(monkeypatch):
         def __init__(self):
             ...
 
-        def search_json(self, body):
-            # Simulate SDK output shape after client conversion
-            return FakeExa().search_and_contents(**{"type": body.get("type", "auto")})
+        def search_and_contents(self, **kwargs):
+            return FakeExa().search_and_contents(**kwargs)
 
     monkeypatch.setattr(exa_routes, "get_exa_client", lambda: FakeClient())
 
     resp = client.post(
         "/exa/search",
-        json={"query": "hello", "type": "keyword", "numResults": 10},
+        json={"query": "hello", "type": "keyword", "num_results": 10},
         headers=_auth_headers(),
     )
     assert resp.status_code == 200, resp.text
@@ -102,7 +101,7 @@ def test_contents_happy_path(monkeypatch):
         def __init__(self):
             ...
 
-        def contents_json(self, body):
+        def get_contents(self, **kwargs):
             return {
                 "requestId": "r2",
                 "results": [{"url": "u", "text": "content"}],

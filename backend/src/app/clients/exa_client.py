@@ -7,30 +7,6 @@ from exa_py import Exa
 from ..config import settings
 
 
-def _camel_to_snake(name: str) -> str:
-    out = []
-    for ch in name:
-        if ch.isupper():
-            out.append('_')
-            out.append(ch.lower())
-        else:
-            out.append(ch)
-    return ''.join(out).lstrip('_')
-
-
-def _snakecase_dict(d: Dict[str, Any]) -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
-    for k, v in d.items():
-        nk = _camel_to_snake(k)
-        if isinstance(v, dict):
-            out[nk] = _snakecase_dict(v)
-        elif isinstance(v, list):
-            out[nk] = [_snakecase_dict(x) if isinstance(x, dict) else x for x in v]
-        else:
-            out[nk] = v
-    return out
-
-
 class ExaClient:
     """Thin wrapper around exa-py to centralize config and safe defaults."""
 
@@ -44,26 +20,15 @@ class ExaClient:
         except TypeError:
             self._exa = Exa(key)
 
-    # Search + optional contents: accept Exa-style JSON body
-    def search_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        d = _snakecase_dict(body)
-        contents = d.pop("contents", None)
-        if isinstance(contents, dict):
-            # normalize extras.imagelinks -> image_links inside contents
-            extras = contents.get("extras")
-            if isinstance(extras, dict) and "imagelinks" in extras:
-                extras = dict(extras)
-                extras["image_links"] = extras.pop("imagelinks")
-                contents["extras"] = extras
-            d.update(contents)
-
-        # Caps enforcement
-        if d.get("type") in {"neural", "auto"} and d.get("num_results", 0) > 25:
-            raise ValueError("numResults must be ≤ 25 for neural/auto per cost cap")
-        if d.get("type") == "keyword" and d.get("num_results", 0) > 100:
-            raise ValueError("numResults must be ≤ 100 for keyword searches")
-
-        res = self._exa.search_and_contents(**d)
+    # Search + optional contents (SDK-first, snake_case)
+    def search_and_contents(self, **kwargs: Any) -> Dict[str, Any]:
+        t = kwargs.get("type", "auto")
+        n = kwargs.get("num_results", 10)
+        if t in {"neural", "auto"} and n > 25:
+            raise ValueError("num_results must be ≤ 25 for neural/auto per cost cap")
+        if t == "keyword" and n > 100:
+            raise ValueError("num_results must be ≤ 100 for keyword searches")
+        res = self._exa.search_and_contents(**kwargs)
         return _to_plain(res)
 
     def search_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -117,15 +82,8 @@ class ExaClient:
         return _to_plain(res)  # type: ignore[no-any-return]
 
     # Contents by URL list
-    def contents_json(self, body: Dict[str, Any]) -> Dict[str, Any]:
-        d = _snakecase_dict(body)
-        # Normalize extras.imagelinks -> image_links
-        extras = d.get("extras")
-        if isinstance(extras, dict) and "imagelinks" in extras:
-            extras = dict(extras)
-            extras["image_links"] = extras.pop("imagelinks")
-            d["extras"] = extras
-        res = self._exa.get_contents(**d)
+    def get_contents(self, **kwargs: Any) -> Dict[str, Any]:
+        res = self._exa.get_contents(**kwargs)
         return _to_plain(res)
 
 

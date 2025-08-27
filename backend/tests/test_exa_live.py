@@ -23,8 +23,8 @@ def test_exa_live_search_and_contents():
     payload = {
         "query": "arxiv 2307.06435 Large Language Models",
         "type": "keyword",
-        "numResults": 1,
-        "contents": {"text": {"maxCharacters": 2000}},
+        "num_results": 1,
+        "text": {"max_characters": 2000},
     }
 
     r = client.post("/exa/search", json=payload, headers={"Authorization": "Bearer dummy"})
@@ -40,7 +40,7 @@ def test_exa_live_search_and_contents():
     url = first["url"]
     r2 = client.post(
         "/exa/contents",
-        json={"urls": [url], "text": {"maxCharacters": 2000}},
+        json={"urls": [url], "text": {"max_characters": 2000}},
         headers={"Authorization": "Bearer dummy"},
     )
     assert r2.status_code == 200, r2.text
@@ -49,4 +49,3 @@ def test_exa_live_search_and_contents():
     assert isinstance(body2.get("results"), list)
     # Clear overrides
     app.dependency_overrides.clear()
-
