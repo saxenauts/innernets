@@ -51,3 +51,14 @@ def get_current_user_id(Authorization: Optional[str] = Header(default=None)) -> 
     if not user_id:
         raise AuthError("Token missing subject")
     return str(user_id)
+
+
+def get_current_token(Authorization: Optional[str] = Header(default=None)) -> str:
+    """Return the validated bearer token string.
+
+    Ensures signature and claims are valid; returns the original token for use with RLS.
+    """
+    token = _get_bearer_token(Authorization)
+    # Validate token; discard claims here, consumer can re-decode if needed
+    _ = decode_supabase_jwt(token)
+    return token

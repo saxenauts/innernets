@@ -13,6 +13,7 @@ Database / Supabase
 - POSTGRES_CONNECTION_STRING: Optional direct Postgres URI if bypassing PostgREST
 - SUPABASE_JWT_SECRET: JWT secret used to verify Supabase access tokens (Auth → Settings → API)
 - SUPABASE_JWT_AUD: Expected JWT audience; defaults to `authenticated`.
+- SUPABASE_ANON_KEY: Public anon key used to build user-scoped clients that enforce RLS.
 
 Notes
 - The backend loads env from `.env` via `load_dotenv(os.getenv("DOTENV_PATH", ".env"))`.

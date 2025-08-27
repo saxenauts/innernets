@@ -93,8 +93,8 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Auth: Supabase JWT via `Authorization: Bearer <access_token>`; verified with `SUPABASE_JWT_SECRET`.
   - Audience: tokens are issued with `aud = authenticated`; backend checks this via `SUPABASE_JWT_AUD` (default `authenticated`).
   - Startup: env is loaded from `.env` in the current dir; launch from `backend/` or set `DOTENV_PATH=backend/.env`.
-- Data access: repository in `src/app/repositories/profile_repo.py` using the service-role client.
-- Note: We will later wire full auth middleware and scopes as needed.
+- Data access: user-scoped Supabase client (RLS enforced). We build a per-request client with `SUPABASE_ANON_KEY` and set the user's token on PostgREST.
+- Service-role usage: reserved for internal jobs and migrations; not used in user endpoints.
 
 ## How to Contribute (docs-first)
 - Update the relevant spec in `backend/*` and the index in `AGENTS.md`.

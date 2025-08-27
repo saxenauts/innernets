@@ -10,6 +10,7 @@ Setup
 - Find your project ref: Supabase Dashboard → Settings → General → Project Reference (e.g., `abcd1234`)
 - Find JWT secret: Supabase Dashboard → Settings → API → JWT secret. Put this in `backend/.env` as `SUPABASE_JWT_SECRET`.
   - Supabase access tokens include `aud: "authenticated"`. Backend validates audience by default (`SUPABASE_JWT_AUD`, default `authenticated`).
+ - Copy anon key: Supabase Dashboard → Settings → API → anon public key. Put this in `backend/.env` as `SUPABASE_ANON_KEY`.
 
 Link a Project (Dev)
 - From the repo root or `backend/`:
@@ -45,7 +46,7 @@ select id, display_name, time_zone, created_at, updated_at from public.profiles 
 ```
 - Note: RLS policies are enforced by the API (auth/anon roles). SQL Editor bypasses RLS. We’ll validate RLS via the backend API once endpoints are added.
 
-Testing the Backend with JWT
+Testing the Backend with JWT + RLS
 - Obtain a Supabase access token (e.g., from your frontend session or using `supabase.auth.signInWithPassword`).
 - Ensure `backend/.env` has `SUPABASE_JWT_SECRET` set.
 - Optionally set `SUPABASE_JWT_AUD` (default `authenticated`).
@@ -54,6 +55,7 @@ Testing the Backend with JWT
   - `PUT /me/profile` with header `Authorization: Bearer <access_token>` and a JSON body like `{ "display_name": "You", "time_zone": "UTC" }`.
   - `GET /me/profile` with the same header; you should see your profile.
   - If you start from repo root, set `DOTENV_PATH=backend/.env` so the server loads the correct `.env`.
+ - RLS check: try a different user's token; access should return 404 due to RLS.
 
 Policies & RLS
 - Minimal RLS is set in the migration to allow users to select/insert/update their own row only (auth.uid() = id).
