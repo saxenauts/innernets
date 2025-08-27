@@ -16,7 +16,8 @@ Code
 - `src/app/auth.py` — Supabase JWT verification for `Authorization: Bearer` tokens
 - `src/app/repositories/profile_repo.py` — Supabase repository for profiles
 - `src/app/routes/profile.py` — Profiles endpoints (GET/PUT `/me/profile`)
-- `tests/` — pytest tests for health, profiles, and client creation
+- `src/app/llm/*` — Function-first LLM adapter (providers, tools, types)
+- `tests/` — pytest tests for health, profiles, client creation, and LLM adapter
 
 Service Plan
 - Search-only agent loop lives in `docs/search-only-plan.md`.
@@ -33,4 +34,4 @@ Development (Poetry)
   - Loading env: start from `backend/` or set `DOTENV_PATH=backend/.env` if starting from repo root.
 
 Next
-- Add logging strategy, DB migrations, scheduler worker, and LLM adapter implementation.
+- Add logging strategy, DB migrations, scheduler worker, and expand LLM adapter (retries, rate limits, cost est.).

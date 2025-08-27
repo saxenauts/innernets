@@ -20,10 +20,13 @@ Phase 2 — Environment & Clients
 - [ ] Wire structured logging and request context helpers
 
 Phase 3 — LLM Adapter (Azure/OpenAI)
-- [ ] Implement adapter baseline (chat, non-stream)
+- [x] Implement adapter baseline (function-first, non-stream)
 - [ ] Normalize errors and usage metrics
+  - Notes: provider HTTP errors mapped to `ProviderError` JSON in exception; usage parsed from provider payload.
 - [ ] Add retry/backoff and rate-limit handling
-- [ ] Tests: contract/error/usage
+  - Notes: implement exponential backoff with jitter on 429/5xx and honor `Retry-After`.
+- [x] Tests: contract/error (usage parsed)
+- [x] Live tests: structured outputs across 4 functions (Azure)
 - [ ] Optional: streaming support
 
 Phase 4 — Scheduler & Jobs
@@ -55,3 +58,10 @@ Notes
  - [x] API: add GET/PUT `/me/profile` (FastAPI)
  - [x] Auth: replace dev header with Supabase JWT verification
  - [ ] Frontend: wire profile view/edit — TODO
+- Prompt Refactor (new)
+- [ ] Centralize prompts with JSON Schema guidance for all functions
+- [ ] Use consistent, minimal system prompts and parameterized user prompts
+- [ ] Validate and self-correct patterns standardized across providers
+
+Status Summary
+- Done so far: backend DB scaffold, Supabase auth (profiles API), and LLM adapter with prompts for 4 functions.

@@ -3,6 +3,7 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-08-27 — Backend LLM adapter implemented (function-first, Azure); added tool registry, unit tests with mocked HTTP, and updated backend docs/env templates. (ref: backend/src/app/llm/*, backend/tests/test_llm_adapter.py, backend/LLM_ADAPTER.md, backend/ENVIRONMENT.md)
 - 2025-08-26 — Refactored Onboarding and missing-state views to shadcn/Tailwind styles; removed legacy class usage causing “old UI”. (ref: frontend/src/pages/Onboarding.tsx, frontend/src/pages/StreamView.tsx)
 - 2025-08-26 — Added token-styled Select component and replaced native select for cadence; removed unused CSS/components; aligned Tailwind v4 import; deleted duplicate Tailwind config. (ref: frontend/src/components/ui/select.tsx, frontend/src/pages/Onboarding.tsx, frontend/src/styles/globals.css)
  - 2025-08-26 — Select menu surface made opaque (no bleed-through), added optional `sources` field to onboarding, and updated docs (design + agents) to a minimal playbook. (ref: frontend/src/components/ui/select.tsx, frontend/src/pages/Onboarding.tsx, frontend/design.md, frontend/AGENTS.md)
@@ -38,7 +39,7 @@ Track work items using simple checklists. Move items between sections as work pr
  - [ ] Backend: decide Python framework and project skeleton — backend
  - [ ] Backend: env loader and config module — backend
  - [ ] Backend: DB client integration (Supabase/Postgres) — backend
- - [ ] Backend: implement LLM adapter (baseline chat) — backend
+ - [x] Backend: implement LLM adapter (function-first, Azure) — backend
  - [ ] Backend: scheduler poller and jobs table migrations — backend
 
 ### In Progress

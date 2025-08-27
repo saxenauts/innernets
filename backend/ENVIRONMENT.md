@@ -27,7 +27,13 @@ LLM Providers (Adapter)
 - AZURE_OPENAI_ENDPOINT: e.g., `https://<name>.openai.azure.com`
 - AZURE_OPENAI_API_VERSION: e.g., `2024-02-15-preview`
 - AZURE_OPENAI_API_KEY: Azure key
-- AZURE_OPENAI_DEPLOYMENT: Default deployment name (e.g., `gpt-4o` alias)
+- AZURE_OPENAI_DEPLOYMENT_NAME: Azure deployment name (e.g., `gpt-4o-mini`). Only this variable is used.
+  - Azure specifics: Some deployments (e.g., `gpt-5`) require `temperature=1.0` and do not accept `max_tokens` in Chat Completions. The adapter accounts for this automatically.
+
+LLM Adapter Options (per request)
+- tool_choice: `auto` | `required` | `none` | `function` (we default to function-first; force a specific tool when deterministic)
+- strict: enable schema-conformant arguments (recommended true)
+- max_tokens, temperature, top_p: standard knobs
 
 Scheduling
 - SCHEDULE_POLL_INTERVAL_MS: Default poll interval for DB-driven scheduler (e.g., `30000`)

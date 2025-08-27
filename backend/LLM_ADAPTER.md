@@ -1,27 +1,18 @@
 # LLM Adapter Specification (Azure OpenAI + OpenAI)
 
 Goal
-- Provide a stable, provider-agnostic interface for chat/completions.
+- Provide a stable, provider-agnostic, function-first interface for workflows.
 - Normalize errors and usage metrics; enable retries and rate limiting.
 
 Non-Goals (for now)
-- Function/tool calling orchestration beyond simple pass-through.
+- General chat UX or message assembly; focus is tool invocation.
 - Prompt safety scanning (placeholder hooks only).
 
-Core Interface (conceptual, not code)
-- create_client(provider_config): returns a client bound to a provider.
-  - provider_config (union):
-    - AzureOpenAI: { endpoint, api_version, api_key, default_deployment }
-    - OpenAI: { api_key, base_url?, organization? }
-- chat(request): returns { id, model, created, usage, choices[], provider_meta }
-  - request: {
-    - model: string (or deployment for Azure)
-    - messages: [{ role: system|user|assistant|tool, content: string | parts }]
-    - temperature?: number, top_p?: number, max_tokens?: number, stop?: string[]
-    - user?: string, metadata?: object, stream?: boolean
-  }
+- Core entrypoints
+  - invoke_tools(messages, tools, options) -> tool_calls[] (only when we explicitly want function-calling)
+  - structured({ instruction, context, schema{name, schema} }, options) -> output (validated JSON per schema)
 - map_errors(provider_error): normalized { code, message, retry_after?, provider_code, status }
-- compute_cost(usage, model): optional; estimate based on model pricing table (configurable, not hard-coded)
+- compute_cost(usage, model): optional; configurable pricing table (not hard-coded)
 
 Streaming (later)
 - Support streaming via callback or async iterator interface.
@@ -46,5 +37,13 @@ Testing Strategy
 - Golden tests for usage normalization and streaming assembly (once added).
 - Simulate rate limits and ensure backoff behavior.
 
+Azure Notes
+- Uses Chat Completions exclusively for structured JSON, with `response_format=json_object` and client-side Pydantic validation.
+- For `gpt-5`, enforces `temperature=1.0` and omits token limit parameters.
+- Adds schema-aware steering (top-level keys and array item keys) and a single self-correction pass if validation fails.
+
 Change Log
 - 2025-08-26 — Initial adapter interface and policies.
+- 2025-08-27 — Implemented function-first adapter with Azure provider and tool registry scaffolding.
+- 2025-08-27 — Added structured-output entrypoint to avoid chat/tool selection; aligns with workflow steps.
+- 2025-08-27 — Simplified Azure provider: try Responses API; on any failure, fall back to Chat Completions with json_object and client-side schema validation. Handles gpt-5 Azure specifics (temperature=1.0, no max_tokens parameter).

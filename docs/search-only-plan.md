@@ -32,13 +32,15 @@ We will **not** use Exa “Answer/Research” SKUs in this MVP.
 
 **Two steps, LLM-guided. All queries are natural-language.**
 
+LLM invocation: function-first via the adapter (OpenAI tool schema). We avoid chat; each step calls a specific function with JSON-schema parameters.
+
 1. **Assimilate → RunBrief (LLM).** Understand mission + “Sources & Creators” + memory (opened/saved/hidden, seen domains, novelty slice).
-2. **Step A — Plan & Search.** LLM emits **3–4 NL queries** (mix of Now / On-ramps / Context / People/Places / Adjacent as helpful).
+2. **Step A — Plan & Search.** LLM emits **3–4 NL queries** (mix of Now / On-ramps / Context / People/Places / Adjacent as helpful). Function: `generate_search_queries(context, hints?)`.
    Call **`POST /search`** with `type: "keyword"` for most, `type: "neural"` for 1–2 novelty queries, **`numResults ≤ 25`**.
 3. **Selective Read.** LLM flags promising candidates; request **contents: { text: true }** for only those.
    **Default: request `text` only** (skip highlights/summary to avoid double-charging).
 4. **Step B — Sharpened Search.** From skimmed texts, LLM proposes **3–4** sharper queries; fetch again (same search types), and **read** a smaller slice of promising pages (`text: true`).
-5. **Compose.** LLM selects **\~10–14** items, dedupes, writes **hook** (≤120 chars) + **reason** (≤90; “why this, for you, now”), and marks **New since last run**. Update memory.
+5. **Compose.** LLM selects **\~10–14** items, dedupes, writes **hook** (≤120 chars) + **reason** (≤90; “why this, for you, now”), and marks **New since last run**. Update memory. Function: `compose_stream_items(candidates, target, context?)`.
 
 **Caps (per run, enforce in code):**
 
@@ -134,5 +136,4 @@ Even at the upper case, we sit far under the **\$100/mo** ceiling.
 * One vendor, one API, simple math. **Search + contents** lets the LLM compose real hooks/reasons without a crawler.
 * Contents is **cheap** when you’re selective (**\$0.001/page**).
 * The two-step plan (3–4 queries each) keeps quality high while costs stay in the **\$11–\$20/mo** range for 10 daily streams—even at upper bounds.
-
 

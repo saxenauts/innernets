@@ -7,7 +7,7 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Evolutionary design: small, testable increments; schema and docs evolve in lockstep.
 - Operational clarity: structured logs, trace IDs, predictable errors, and idempotency for jobs.
 - Security-first: least-privilege DB access, no secrets in repo, input validation, OWASP basics.
-- Portability: provider-agnostic LLM adapter; scheduler that can scale or be swapped later.
+- Portability: provider-agnostic, function-first LLM adapter; scheduler that can scale or be swapped later.
 
 ## Initial Architecture (FastAPI chosen)
 - API layer: FastAPI app (`backend/src/app/main.py`) with a minimal health endpoint.
@@ -60,10 +60,10 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Upgrade path: swap to a distributed queue (e.g., Celery/Redis) or managed scheduler; keep contracts stable.
 
 ## LLM Adapter Strategy (summary)
-- Single interface for chat/completions with common params (`model`, `messages`, `temperature`, `top_p`, `max_tokens`, `stop`).
-- Provider-specific config adapters: Azure (endpoint, api-version, deployment) and OpenAI native.
-- Normalized usage metrics (prompt/completion tokens, cost estimation) and error taxonomy.
-- Retries with jittered backoff on transient errors; transparent rate-limit handling.
+- Structured JSON first: single-entrypoint `structured(instruction, context, schema)` returning Pydantic-validated outputs.
+- Provider adapters: Azure OpenAI (Chat Completions + `response_format=json_object`) and OpenAI native (TBD).
+- Normalized usage metrics and error taxonomy; raise `ProviderError` on failures.
+- Determinism controls: schema guidance and temperature; minimal retries with a one-shot self-correction on validation errors.
 
 ## Observability
 - Structured logs with contextual fields (user_id, schedule_id, job_id, run_id, provider, model, trace_id).
@@ -100,3 +100,4 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Update the relevant spec in `backend/*` and the index in `AGENTS.md`.
 - Update `backend/SCHEMA.md` when data shapes change.
 - Log changes and move tasks in `docs/updates.md`.
+- Prompt architecture: adopt JSON Schema-guided prompts for all functions; centralize and refactor prompt templates after functions are stable.
