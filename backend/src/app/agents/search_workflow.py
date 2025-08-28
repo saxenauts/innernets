@@ -3,7 +3,7 @@ from __future__ import annotations
 """Deterministic search workflow orchestrator (ID-first, schema-first).
 
 Flow (KISS loop compliant):
-  1) Generate 10 search queries (LLM) with routing hints (keyword|neural)
+  1) Generate 5 search queries (LLM) with routing hints (keyword|neural)
   2) Exa search per query (25 results each), assign short IDs ("01", "02", ...)
   3) Filter candidates (LLM) → select 2–3 IDs to read
   4) Read contents for selected IDs (Exa)
@@ -100,7 +100,7 @@ def _exa_search(
 def _assign_ids(
     results: List[ResultWithContent],
     start_id: int,
-    keep_for_llm: int = 30,
+    keep_for_llm: Optional[int] = None,
 ) -> Tuple[int, Dict[str, str], Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
     id_to_url: Dict[str, str] = {}
     id_to_meta: Dict[str, Dict[str, Any]] = {}
@@ -121,7 +121,7 @@ def _assign_ids(
             "published_at": getattr(r, "publishedDate", None),
         }
         id_to_meta[rid] = meta
-        if len(candidates_ctx) < keep_for_llm:
+        if keep_for_llm is None or len(candidates_ctx) < keep_for_llm:
             candidates_ctx.append({k: v for k, v in meta.items() if k != "url"})
     return next_id, id_to_url, id_to_meta, candidates_ctx
 
@@ -255,7 +255,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     cost_calls.extend(calls)
     initial_results = _dedupe_by_url(initial_results)
     next_id = 1
-    next_id, id_to_url, id_to_meta, candidates_ctx = _assign_ids(initial_results, next_id, keep_for_llm=30)
+    next_id, id_to_url, id_to_meta, candidates_ctx = _assign_ids(initial_results, next_id, keep_for_llm=None)
 
     # 3) Filter candidates (LLM) → select 2–3 IDs
     filt_out = steps.filter_candidates(cfg, params.mission, candidates=candidates_ctx, additional_context={}, options=InvokeOptions(temperature=1.0, max_tokens=256))

@@ -120,7 +120,7 @@ def test_structured_outputs(monkeypatch):
     fake_parsed = steps.GenerateQueriesOut(
         queries=[
             steps.QueryItem(query=f"q{i}", query_type=("keyword" if i % 2 else "neural"))
-            for i in range(1, 11)
+            for i in range(1, 6)
         ]
     ).model_dump()
 
@@ -167,7 +167,7 @@ def test_structured_generate_queries_only(monkeypatch):
     payload = steps.GenerateQueriesOut(
         queries=[
             steps.QueryItem(query=f"q{i}", query_type=("keyword" if i % 2 else "neural"))
-            for i in range(1, 11)
+            for i in range(1, 6)
         ]
     ).model_dump()
     class FakeChatCompletion:

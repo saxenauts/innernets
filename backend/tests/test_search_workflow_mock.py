@@ -16,11 +16,6 @@ def test_search_workflow_mock_llm_and_exa(monkeypatch):
                 steps.QueryItem(query="long-term memory agents", query_type="neural"),
                 steps.QueryItem(query="vector memory patterns", query_type="neural"),
                 steps.QueryItem(query="episodic memory ai", query_type="neural"),
-                steps.QueryItem(query="memgpt architecture", query_type="keyword"),
-                steps.QueryItem(query="langgraph persistent state", query_type="keyword"),
-                steps.QueryItem(query="memory evaluation benchmarks", query_type="keyword"),
-                steps.QueryItem(query="agent memory privacy", query_type="keyword"),
-                steps.QueryItem(query="state machines agents", query_type="neural"),
             ]
         )
 

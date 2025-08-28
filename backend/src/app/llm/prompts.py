@@ -5,12 +5,12 @@ SYSTEM_PREAMBLE = (
     "Keep outputs minimal. If unsure, return an empty array rather than fabricating."
 )
 
-# 1) Generate Search Queries (10)
+# 1) Generate Search Queries (5)
 GENERATE_SEARCH_QUERIES = (
     'MISSION:\n"{{mission}}"\n\n'
     "CONTEXT (JSON):\n{{additional_context_json}}\n\n"
     "TASK:\n"
-    "Plan exactly 10 concise web search queries that best advance the mission right now.\n"
+    "Plan exactly 5 concise web search queries that best advance the mission right now.\n"
     "Blend: \n"
     "- Now (what changed recently), \n"
     "- Context (explainers/backfile if learner), \n"
@@ -22,7 +22,7 @@ GENERATE_SEARCH_QUERIES = (
     "- \"keyword\" for precise lookups, named entities, site: scoping, regulations, or exact phrases.\n"
     "- \"neural\" for broad/adjacent concept discovery or when novelty is desired.\n\n"
     "Honor user taste from CONTEXT (domains pinned/muted, novelty target). Avoid duplicates and near-synonyms. \n"
-    "Return JSON: { \"queries\": [ { \"query\": \"...\", \"query_type\": \"keyword|neural\" }, ... ] } (10 items)."
+    "Return JSON: { \"queries\": [ { \"query\": \"...\", \"query_type\": \"keyword|neural\" }, ... ] } (5 items)."
 )
 
 # 3) Filter Candidates → 2–3 IDs

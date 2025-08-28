@@ -33,7 +33,7 @@ class QueryItem(BaseModel):
 
 
 class GenerateQueriesOut(BaseModel):
-    queries: List[QueryItem] = Field(..., min_items=10, max_items=10)
+    queries: List[QueryItem] = Field(..., min_items=5, max_items=5)
 
 
 class FilterCandidatesOut(BaseModel):

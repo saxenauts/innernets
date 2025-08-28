@@ -216,5 +216,5 @@ def test_live_full_trace_personal_ai_dashboard_companies():
     print("[Curations]", json.dumps([c.model_dump() for c in cons.curations], indent=2))
 
     # Sanity assertions
-    assert len(queries) == 10
+    assert len(queries) == 5
     assert len(cons.curations) >= 1
