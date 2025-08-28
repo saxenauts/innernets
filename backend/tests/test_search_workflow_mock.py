@@ -5,52 +5,52 @@ import pytest
 
 
 def test_search_workflow_mock_llm_and_exa(monkeypatch):
-    # Mock LLM structured to return deterministic outputs for 4 calls
-    call_seq = {"i": 0}
+    # Mock new LLM step functions (IDs only)
+    from app.llm import search_steps as steps
 
-    class DummyUsage:
-        def __init__(self):
-            self.prompt_tokens = 10
-            self.completion_tokens = 20
-            self.total_tokens = 30
+    def fake_generate_search_queries(cfg, mission, additional_context=None, options=None):
+        return steps.GenerateQueriesOut(
+            queries=[
+                steps.QueryItem(query="ai memory tools", query_type="keyword"),
+                steps.QueryItem(query="site:github.com agent memory", query_type="keyword"),
+                steps.QueryItem(query="long-term memory agents", query_type="neural"),
+                steps.QueryItem(query="vector memory patterns", query_type="neural"),
+                steps.QueryItem(query="episodic memory ai", query_type="neural"),
+                steps.QueryItem(query="memgpt architecture", query_type="keyword"),
+                steps.QueryItem(query="langgraph persistent state", query_type="keyword"),
+                steps.QueryItem(query="memory evaluation benchmarks", query_type="keyword"),
+                steps.QueryItem(query="agent memory privacy", query_type="keyword"),
+                steps.QueryItem(query="state machines agents", query_type="neural"),
+            ]
+        )
 
-    class DummyRes:
-        def __init__(self, output):
-            self.output = output
-            self.usage = DummyUsage()
-            self.model = "dummy"
+    def fake_filter_candidates(cfg, mission, candidates, additional_context=None, options=None):
+        # select first two IDs deterministically
+        ids = [c["id"] for c in candidates][:2]
+        return steps.FilterCandidatesOut(selected_ids=ids)
 
-    def fake_structured(_cfg, req, _opts):
-        i = call_seq["i"]; call_seq["i"] += 1
-        if i == 0:
-            # Generate queries
-            return DummyRes({"queries": ["ai memory tools", "site:github.com agent memory"]})
-        if i == 1:
-            # Evaluate candidates
-            cands = req.context.get("candidates")
-            assert isinstance(cands, list) and len(cands) >= 1
-            # Pick first two
-            out = {
-                "scores": [
-                    {"url": c.get("url") or "https://example.com/", "score": 90, "read": True}
-                    for c in cands[:2]
-                ]
-            }
-            return DummyRes(out)
-        if i == 2:
-            # Propose followups
-            return DummyRes({"followups": ["benchmarks persistent memory", "privacy frameworks"]})
-        # Compose items
-        candz = req.context.get("candidates") or []
-        items = []
-        for c in candz[:2]:
-            items.append({
-                "title": c.get("title") or "Item",
-                "url": c.get("url") or "https://example.com/",
-                "hook": "Short hook",
-                "reason": "Relevant",
-            })
-        return DummyRes({"items": items})
+    def fake_propose_followups(
+        cfg, mission, initial_queries, filtered_ids, read_summaries, additional_context=None, prior_urls=None, options=None
+    ):
+        return steps.ProposeFollowupsOut(
+            followups=[
+                steps.FollowupItem(query="memory eval real-world", query_type="keyword"),
+                steps.FollowupItem(query="privacy risks agent memory", query_type="neural"),
+                steps.FollowupItem(query="benchmarks episodic vs semantic", query_type="keyword"),
+            ]
+        )
+
+    def fake_consolidate_curations(cfg, mission, all_items, additional_context=None, options=None):
+        # group first 3 into curation A, next 3 into curation B (ids exist from workflow)
+        ids = [it["id"] for it in all_items]
+        a = ids[:3]
+        b = ids[3:6] if len(ids) >= 6 else ids[:3]
+        return steps.ConsolidateOut(
+            curations=[
+                steps.Curation(title="Agent Memory Architectures", hook="Core patterns and tradeoffs.", link_ids=a or []),
+                steps.Curation(title="Benchmarks & Privacy", hook="What to trust and guard.", link_ids=b or []),
+            ]
+        )
 
     # Mock Exa client wrapper
     class FakeResult:
@@ -85,14 +85,18 @@ def test_search_workflow_mock_llm_and_exa(monkeypatch):
             def get_contents(self, **kwargs):
                 urls = kwargs.get("urls") or []
                 return FakeContentsResponse([
-                    types.SimpleNamespace(title="MemGPT", url=urls[0] if urls else "https://example.com/", text="..."),
+                    types.SimpleNamespace(title="MemGPT", url=urls[0] if urls else "https://example.com/", text="Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
                 ])
 
         return C()
 
     # Apply patches
     import app.agents.search_workflow as sw
-    monkeypatch.setattr(sw, "llm_structured", fake_structured)
+    from app.llm import search_steps as steps_mod
+    monkeypatch.setattr(steps_mod, "generate_search_queries", fake_generate_search_queries)
+    monkeypatch.setattr(steps_mod, "filter_candidates", fake_filter_candidates)
+    monkeypatch.setattr(steps_mod, "propose_followups", fake_propose_followups)
+    monkeypatch.setattr(steps_mod, "consolidate_curations", fake_consolidate_curations)
     monkeypatch.setattr(sw, "get_exa_client", fake_get_exa_client)
 
     job = {"payload": {"agent": "search_only_v1", "params": {"mission": "AI tools with persistent user memory"}}}
@@ -108,4 +112,5 @@ def test_search_workflow_mock_llm_and_exa(monkeypatch):
     assert b.get("total") == out["cost_exa"]
     assert b.get("search") >= 0
     assert isinstance(out["usage_tokens"], dict)
-    assert isinstance(out.get("items"), list)
+    # curations present
+    assert isinstance(out.get("curations"), list)

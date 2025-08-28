@@ -116,7 +116,17 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Prompt architecture: adopt JSON Schema-guided prompts for all functions; centralize and refactor prompt templates after functions are stable.
 - Agents rule: return Pydantic models at boundaries (no plain dicts); define schemas alongside agents.
 
+## Search Workflow (LLM steps, ID-first)
+- Location: `backend/src/app/llm/search_steps.py`
+- Steps:
+  - Generate 10 queries with routing (`query_type: keyword|neural`).
+  - Filter candidates → return 2–3 short IDs only (no URLs).
+  - Propose 3–6 follow-up queries (diversity and adjacency).
+  - Consolidate curations → 2–6 clusters with `title`, `hook`, and 3–4 `link_ids`.
+- Orchestrator: `backend/src/app/agents/search_workflow.py` assigns IDs ("01", "02", …), maps IDs ↔ URLs, reads contents for selected IDs, runs follow-up search, and consolidates.
+- Token discipline: pass compact context (title, domain, short snippets/summaries). LLMs never see raw URLs.
+- Exa routing: 25 results per query; `keyword` vs `neural` per item.
+
 ## LLM Structured Outputs Notes
 - Integer fields: prompts and provider system message emphasize whole numbers for integer-typed fields.
-- Candidate scoring: if the model returns floats on a 0–5 scale, backend coerces to 0–100 via ×20 and rounding; other numeric inputs are rounded and clamped to [0,100].
 - Repair attempt: on validation failure, the adapter performs one repair call with the validation error details to elicit corrected JSON.

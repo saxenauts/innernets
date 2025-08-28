@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-"""Deterministic search workflow orchestrator.
+"""Deterministic search workflow orchestrator (ID-first, schema-first).
 
-Implements a fixed, serial flow:
-  1) Generate search queries (LLM)
-  2) Exa search (per query, small fanout)
-  3) Evaluate/filter candidates (LLM)
-  4) Optional contents read for top picks
-  5) Propose follow-up queries (LLM)
-  6) Compose items (LLM)
+Flow (KISS loop compliant):
+  1) Generate 10 search queries (LLM) with routing hints (keyword|neural)
+  2) Exa search per query (25 results each), assign short IDs ("01", "02", ...)
+  3) Filter candidates (LLM) → select 2–3 IDs to read
+  4) Read contents for selected IDs (Exa)
+  5) Propose 3–6 follow-up queries (LLM)
+  6) Exa search for follow-ups (continue ID numbering)
+  7) Consolidate into curations (LLM): title, hook, 3–4 link_ids each
 
-This module aims to be robust and price-efficient with conservative defaults.
+LLMs never see raw URLs, only short IDs; the orchestrator maps IDs to URLs.
 """
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 import logging
 from urllib.parse import urlparse
 
@@ -21,33 +22,24 @@ from pydantic import BaseModel, Field
 
 from app.clients.exa_client import get_exa_client
 from app.clients.exa_schemas import SearchResponse, ContentsResponse, ResultWithContent
-from app.llm import prompts
-from app.llm import structured as llm_structured
-from app.llm.types import ProviderConfig, StructuredRequest, InvokeOptions, JsonSchema
-from app.llm.schemas import (
-    GenerateSearchQueriesOut,
-    EvaluateCandidatesOut,
-    ProposeFollowupsOut,
-    ComposeStreamItemsOut,
-)
+from app.llm.types import ProviderConfig, InvokeOptions
+from app.llm import search_steps as steps
 
 
 class SearchJobParams(BaseModel):
     mission: str = Field(..., description="User mission/intent for the search workflow")
-    hints: List[str] = Field(default_factory=list, description="Optional hints like site:, filetype:")
     include_domains: List[str] = Field(default_factory=list)
     exclude_domains: List[str] = Field(default_factory=list)
-    search_type: Optional[str] = Field(default="keyword")  # keyword|neural|auto|fast
-    num_results_per_query: int = Field(default=5, ge=1, le=25)
+    # fixed fanout and routing live in steps; allow overrides cautiously
+    num_results_per_query: int = Field(default=25, ge=1, le=25)
     read_top_k: int = Field(default=2, ge=0, le=5)
-    max_chars_per_page: int = Field(default=1500, ge=200, le=200_000)
-    compose_items_limit: int = Field(default=10, ge=3, le=20)
+    max_chars_per_page: int = Field(default=15000, ge=200, le=200_000)
 
 
 class SearchWorkflowResult(BaseModel):
-    queries: List[str] = Field(default_factory=list)
-    followups: List[str] = Field(default_factory=list)
-    items: List[Dict[str, Any]] = Field(default_factory=list)
+    queries: List[steps.QueryItem] = Field(default_factory=list)
+    followups: List[steps.FollowupItem] = Field(default_factory=list)
+    curations: List[Dict[str, Any]] = Field(default_factory=list)
     reads: int = 0
     cost_exa: float = 0.0
     usage_tokens: Dict[str, int] = Field(default_factory=lambda: {"prompt": 0, "completion": 0, "total": 0})
@@ -74,6 +66,152 @@ def _dedupe_by_url(results: List[ResultWithContent]) -> List[ResultWithContent]:
     return out
 
 
+def _id(n: int) -> str:
+    return str(n).zfill(2)
+
+
+def _exa_search(
+    exa,
+    queries: List[steps.QueryItem],
+    include_domains: List[str],
+    exclude_domains: List[str],
+    num_results: int,
+) -> Tuple[List[ResultWithContent], float, List[Dict[str, Any]]]:
+    all_results: List[ResultWithContent] = []
+    cost_calls: List[Dict[str, Any]] = []
+    cost_search_total = 0.0
+    for qi in queries:
+        sr: SearchResponse = exa.search(
+            query=qi.query,
+            type=qi.query_type,
+            num_results=num_results,
+            include_domains=include_domains or None,
+            exclude_domains=exclude_domains or None,
+        )
+        if sr.provider_cost and sr.provider_cost.total is not None:
+            t = float(sr.provider_cost.total or 0.0)
+            cost_search_total += t
+            cost_calls.append({"type": "search", "total": t})
+        if sr.results:
+            all_results.extend(sr.results)
+    return all_results, cost_search_total, cost_calls
+
+
+def _assign_ids(
+    results: List[ResultWithContent],
+    start_id: int,
+    keep_for_llm: int = 30,
+) -> Tuple[int, Dict[str, str], Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
+    id_to_url: Dict[str, str] = {}
+    id_to_meta: Dict[str, Dict[str, Any]] = {}
+    candidates_ctx: List[Dict[str, Any]] = []
+    next_id = start_id
+    for r in results:
+        if not r.url:
+            continue
+        rid = _id(next_id)
+        next_id += 1
+        id_to_url[rid] = r.url
+        meta = {
+            "id": rid,
+            "title": r.title or "",
+            "domain": _domain(r.url),
+            "url": r.url,
+            "snippet": "",
+            "published_at": getattr(r, "publishedDate", None),
+        }
+        id_to_meta[rid] = meta
+        if len(candidates_ctx) < keep_for_llm:
+            candidates_ctx.append({k: v for k, v in meta.items() if k != "url"})
+    return next_id, id_to_url, id_to_meta, candidates_ctx
+
+
+def _read_contents(
+    exa,
+    selected_ids: List[str],
+    id_to_url: Dict[str, str],
+    id_to_meta: Dict[str, Dict[str, Any]],
+    max_chars: int,
+) -> Tuple[List[Dict[str, Any]], Optional[ContentsResponse], float, List[Dict[str, Any]]]:
+    to_read_urls = [id_to_url[sid] for sid in selected_ids if sid in id_to_url]
+    if not to_read_urls:
+        return [], None, 0.0, []
+    contents: ContentsResponse = exa.get_contents(urls=to_read_urls, text={"max_characters": max_chars})
+    cost = 0.0
+    calls: List[Dict[str, Any]] = []
+    if contents and contents.provider_cost and contents.provider_cost.total is not None:
+        cost = float(contents.provider_cost.total or 0.0)
+        calls.append({"type": "contents", "total": cost})
+    read_summaries: List[Dict[str, Any]] = []
+    if contents and contents.results:
+        url_to_text: Dict[str, Tuple[str, str]] = {}
+        for r in contents.results:
+            if r and r.url:
+                url_to_text[r.url] = (r.title or "", (r.text or "").strip())
+        for sid in selected_ids:
+            url = id_to_url.get(sid)
+            title, body = url_to_text.get(url, (id_to_meta[sid]["title"], ""))
+            read_summaries.append({
+                "id": sid,
+                "title": title,
+                "domain": id_to_meta[sid]["domain"],
+                "summary": (body or "")[:800],
+            })
+    return read_summaries, contents, cost, calls
+
+
+def _search_followups(
+    exa,
+    followups: List[steps.FollowupItem],
+    next_id: int,
+    id_to_url: Dict[str, str],
+    id_to_meta: Dict[str, Dict[str, Any]],
+    include_domains: List[str],
+    exclude_domains: List[str],
+    num_results: int,
+) -> Tuple[int, List[Dict[str, Any]], float, List[Dict[str, Any]]]:
+    all_items_for_consolidation: List[Dict[str, Any]] = []
+    cost = 0.0
+    calls: List[Dict[str, Any]] = []
+    for fi in followups:
+        sr2: SearchResponse = exa.search(
+            query=fi.query,
+            type=fi.query_type,
+            num_results=num_results,
+            include_domains=include_domains or None,
+            exclude_domains=exclude_domains or None,
+        )
+        if sr2.provider_cost and sr2.provider_cost.total is not None:
+            t = float(sr2.provider_cost.total or 0.0)
+            cost += t
+            calls.append({"type": "search", "total": t})
+        if not (sr2 and sr2.results):
+            continue
+        for r in _dedupe_by_url(list(sr2.results)):
+            if not r.url:
+                continue
+            rid = _id(next_id)
+            next_id += 1
+            id_to_url[rid] = r.url
+            id_to_meta[rid] = {
+                "id": rid,
+                "title": r.title or "",
+                "domain": _domain(r.url),
+                "url": r.url,
+                "snippet": "",
+                "published_at": getattr(r, "publishedDate", None),
+            }
+            all_items_for_consolidation.append(
+                {
+                    "id": rid,
+                    "title": id_to_meta[rid]["title"],
+                    "domain": id_to_meta[rid]["domain"],
+                    "snippet_or_summary": "",
+                }
+            )
+    return next_id, all_items_for_consolidation, cost, calls
+
+
 def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]:
     payload = job.get("payload") or {}
     params_raw = payload.get("params") or {}
@@ -87,171 +225,105 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     cfg = ProviderConfig.from_env()
     opts = InvokeOptions(temperature=1.0, max_tokens=512)
 
-    # 1) Generate search queries (LLM)
-    instruction1 = (
-        prompts.GENERATE_SEARCH_QUERIES
-        + "\nGenerate 3–4 focused queries for the mission."
-    )
-    req1 = StructuredRequest(
-        instruction=instruction1,
-        context={"mission": params.mission, "hints": params.hints},
-        schema_name="GenerateSearchQueriesOut",
-        out_schema=JsonSchema(properties={}, required=[]),
-        pydantic_model=GenerateSearchQueriesOut,
-    )
-    res1 = llm_structured(cfg, req1, opts)
-    q_out = GenerateSearchQueriesOut(**(res1.output or {}))
-    queries = list(q_out.queries or [])
+    # Usage accumulator (LLM)
+    usage_total = {"prompt": 0, "completion": 0, "total": 0}
+
+    # 1) Generate search queries (LLM, 10 items)
+    q_out = steps.generate_search_queries(cfg, params.mission, additional_context={}, options=opts)
+    queries: List[steps.QueryItem] = list(q_out.queries or [])
     if not queries:
-        queries = [params.mission]
+        # Safety fallback: 10 copies of mission as keyword
+        queries = [steps.QueryItem(query=params.mission, query_type="keyword") for _ in range(10)]
 
-    # Cap fanout to 2 queries initially for cost control
-    queries = queries[:2]
-
-    # Accumulators
-    all_results: List[ResultWithContent] = []
-    cost_exa = 0.0
-    usage_total = {
-        "prompt": res1.usage.prompt_tokens or 0,
-        "completion": res1.usage.completion_tokens or 0,
-        "total": res1.usage.total_tokens or 0,
-    }
-
+    # Exa accumulators
     exa = get_exa_client()
-    search_type = params.search_type or "keyword"
-    per_query = max(1, min(params.num_results_per_query, 25 if search_type in {"auto", "neural"} else 100))
-
-    # 2) Exa search per query
     cost_calls: List[Dict[str, Any]] = []
     cost_search_total = 0.0
     cost_contents_total = 0.0
-    for q in queries:
-        sr: SearchResponse = exa.search(
-            query=q,
-            type=search_type,
-            num_results=per_query,
-            include_domains=params.include_domains or None,
-            exclude_domains=params.exclude_domains or None,
-        )
-        if sr.provider_cost and sr.provider_cost.total is not None:
-            t = float(sr.provider_cost.total or 0.0)
-            cost_exa += t
-            cost_search_total += t
-            cost_calls.append({"type": "search", "total": t})
-        if sr.results:
-            all_results.extend(sr.results)
+    cost_exa = 0.0
 
-    all_results = _dedupe_by_url(all_results)
-
-    # Build candidate context for LLM scoring
-    candidates_ctx: List[Dict[str, Any]] = []
-    for r in all_results[: max(3, min(10, len(all_results)) )]:
-        candidates_ctx.append(
-            {
-                "title": r.title or "",
-                "domain": _domain(r.url),
-                "url": r.url or None,
-                "snippet": "",
-            }
-        )
-
-    # 3) Evaluate/filter candidates (LLM)
-    instruction2 = (
-        prompts.EVALUATE_CANDIDATES
-        + " Score exactly the provided candidates and mark a small subset for reading."
-        + " Scores must be integers from 0 to 100."
-        + " Return schema-only JSON."
+    # 2) Exa search and ID assignment
+    initial_results, cst, calls = _exa_search(
+        exa,
+        queries,
+        include_domains=params.include_domains,
+        exclude_domains=params.exclude_domains,
+        num_results=params.num_results_per_query,
     )
-    req2 = StructuredRequest(
-        instruction=instruction2,
-        context={"mission": params.mission, "candidates": candidates_ctx},
-        schema_name="EvaluateCandidatesOut",
-        out_schema=JsonSchema(properties={}, required=[]),
-        pydantic_model=EvaluateCandidatesOut,
+    cost_search_total += cst
+    cost_exa += cst
+    cost_calls.extend(calls)
+    initial_results = _dedupe_by_url(initial_results)
+    next_id = 1
+    next_id, id_to_url, id_to_meta, candidates_ctx = _assign_ids(initial_results, next_id, keep_for_llm=30)
+
+    # 3) Filter candidates (LLM) → select 2–3 IDs
+    filt_out = steps.filter_candidates(cfg, params.mission, candidates=candidates_ctx, additional_context={}, options=InvokeOptions(temperature=1.0, max_tokens=256))
+    selected_ids = [sid for sid in (filt_out.selected_ids or []) if sid in id_to_url]
+    if len(selected_ids) < 2:
+        # Fallback: take first two candidates if available
+        selected_ids = [candidates_ctx[i]["id"] for i in range(min(2, len(candidates_ctx)))]
+
+    # 4) Read contents for selected IDs
+    read_summaries, contents, cst, calls = _read_contents(
+        exa,
+        selected_ids,
+        id_to_url,
+        id_to_meta,
+        params.max_chars_per_page,
     )
-    res2 = llm_structured(cfg, req2, opts)
-    usage_total["prompt"] += res2.usage.prompt_tokens or 0
-    usage_total["completion"] += res2.usage.completion_tokens or 0
-    usage_total["total"] += res2.usage.total_tokens or 0
-    scores_out = EvaluateCandidatesOut(**(res2.output or {}))
-
-    # Select URLs to read
-    to_read: List[str] = []
-    scored = list(scores_out.scores or [])
-    # sort by score desc, stable
-    scored.sort(key=lambda s: int(getattr(s, "score", 0) or 0), reverse=True)
-    for s in scored:
-        if getattr(s, "read", False) and s.url:
-            to_read.append(str(s.url))
-        if len(to_read) >= params.read_top_k:
-            break
-
-    # 4) Optional contents read
-    contents: Optional[ContentsResponse] = None
-    if to_read:
-        contents = exa.get_contents(
-            urls=to_read,
-            text={"max_characters": params.max_chars_per_page},
-        )
-        if contents and contents.provider_cost and contents.provider_cost.total is not None:
-            t = float(contents.provider_cost.total or 0.0)
-            cost_exa += t
-            cost_contents_total += t
-            cost_calls.append({"type": "contents", "total": t})
+    cost_contents_total += cst
+    cost_exa += cst
+    cost_calls.extend(calls)
 
     # 5) Propose follow-ups (LLM)
-    instruction3 = prompts.PROPOSE_FOLLOWUPS + " Propose up to 4 queries."
-    ctx3 = {
-        "mission": params.mission,
-        "observed_domains": sorted({c.get("domain") for c in candidates_ctx if c.get("domain")}),
-    }
-    req3 = StructuredRequest(
-        instruction=instruction3,
-        context=ctx3,
-        schema_name="ProposeFollowupsOut",
-        out_schema=JsonSchema(properties={}, required=[]),
-        pydantic_model=ProposeFollowupsOut,
+    follow_out = steps.propose_followups(
+        cfg,
+        params.mission,
+        initial_queries=queries,
+        filtered_ids=selected_ids,
+        read_summaries=read_summaries,
+        additional_context={},
+        prior_urls=[],
+        options=InvokeOptions(temperature=1.0, max_tokens=512),
     )
-    res3 = llm_structured(cfg, req3, opts)
-    usage_total["prompt"] += res3.usage.prompt_tokens or 0
-    usage_total["completion"] += res3.usage.completion_tokens or 0
-    usage_total["total"] += res3.usage.total_tokens or 0
-    followups_out = ProposeFollowupsOut(**(res3.output or {}))
+    followups: List[steps.FollowupItem] = list(follow_out.followups or [])
 
-    # 6) Compose items (LLM)
-    # Prefer composed set from read contents if available; otherwise from candidates
-    compose_candidates: List[Dict[str, str]] = []
-    if contents and contents.results:
-        for r in contents.results:
-            if r.url and r.title:
-                compose_candidates.append({"title": r.title, "url": r.url})
-    if not compose_candidates:
-        for c in candidates_ctx:
-            if c.get("url") and c.get("title"):
-                compose_candidates.append({"title": c["title"], "url": c["url"]})
-    # Limit
-    compose_candidates = compose_candidates[: max(3, params.compose_items_limit) ]
-
-    instruction4 = prompts.COMPOSE_STREAM_ITEMS + " Compose succinct, non-repetitive hooks."
-    req4 = StructuredRequest(
-        instruction=instruction4,
-        context={"mission": params.mission, "candidates": compose_candidates},
-        schema_name="ComposeStreamItemsOut",
-        out_schema=JsonSchema(properties={}, required=[]),
-        pydantic_model=ComposeStreamItemsOut,
+    # 6) Second search on follow-ups (continue IDs)
+    # include read summaries first
+    all_items_for_consolidation: List[Dict[str, Any]] = [
+        {"id": it["id"], "title": it["title"], "domain": it["domain"], "snippet_or_summary": it.get("summary", "")} for it in read_summaries
+    ]
+    next_id, more_items, cst, calls = _search_followups(
+        exa,
+        followups,
+        next_id,
+        id_to_url,
+        id_to_meta,
+        include_domains=params.include_domains,
+        exclude_domains=params.exclude_domains,
+        num_results=params.num_results_per_query,
     )
-    res4 = llm_structured(cfg, req4, opts)
-    usage_total["prompt"] += res4.usage.prompt_tokens or 0
-    usage_total["completion"] += res4.usage.completion_tokens or 0
-    usage_total["total"] += res4.usage.total_tokens or 0
-    composed = ComposeStreamItemsOut(**(res4.output or {}))
+    cost_search_total += cst
+    cost_exa += cst
+    cost_calls.extend(calls)
+    all_items_for_consolidation.extend(more_items)
+
+    # 7) Consolidate into curations (LLM)
+    cons_out = steps.consolidate_curations(
+        cfg,
+        params.mission,
+        all_items=all_items_for_consolidation,
+        additional_context={},
+        options=InvokeOptions(temperature=1.0, max_tokens=768),
+    )
 
     # Assemble output result + metrics
     output = SearchWorkflowResult(
         queries=queries,
-        followups=list(followups_out.followups or []),
-        items=[it.model_dump(mode="json") for it in (composed.items or [])],
-        reads=len(to_read),
+        followups=followups,
+        curations=[c.model_dump(mode="json") for c in (cons_out.curations or [])],
+        reads=len(selected_ids),
         cost_exa=float(cost_exa),
         usage_tokens={
             "prompt": int(usage_total["prompt"]),
@@ -269,12 +341,11 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
             f"cost.total={output.cost_exa:.4f} cost.search={cost_search_total:.4f} cost.contents={cost_contents_total:.4f}"
         )
         logger.info(log_line)
-        # Also print once for quick dev visibility
         print(log_line)
     except Exception:
         pass
 
-    # The scheduler expects a dict of metrics; include items/followups and cost breakdown
+    # Scheduler-facing dict: maintain old fields for compatibility and add 'curations'
     return {
         "agent": payload.get("agent", "search_only_v1"),
         "queries": len(output.queries),
@@ -287,6 +358,6 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
             "calls": cost_calls,
         },
         "usage_tokens": output.usage_tokens,
-        "followups": output.followups,
-        "items": output.items,
+        "followups": [f.model_dump(mode="json") for f in followups],
+        "curations": output.curations,
     }

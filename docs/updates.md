@@ -57,6 +57,20 @@ Track work items using simple checklists. Move items between sections as work pr
  - [ ] Backend: scaffold docs and planning — 2025-08-26
  - [ ] Backend: FastAPI app + env templates + Supabase client factory + tests — 2025-08-26
 
+## 2025-08-28 — Backend Search Workflow Refactor
+- Implemented ID-first, schema-first search workflow:
+  - Added `backend/src/app/llm/search_steps.py` with LLM functions and Pydantic schemas for queries, filtering, follow-ups, and curations.
+  - Refactored orchestrator `backend/src/app/agents/search_workflow.py` to use the new steps, assign short link IDs ("01", "02"…), route Exa per `query_type`, read only 2–3 items, and consolidate into curations.
+  - Updated tests: replaced mock workflow test to cover ID-based flow; live test now gated by `RUN_LIVE_OPENAI_TESTS=1` and checks `curations`.
+  - Updated `backend/AGENTS.md` with the new workflow design and constraints.
+  - Centralized prompts with double-braced variables in `backend/src/app/llm/prompts.py`; fixed LLM temperature to 1.0 globally.
+
+- TODO: Improve cost accounting granularity (per step: search vs. contents, round 1 vs. follow-ups) and add token cost aggregation (prompt/completion) to workflow outputs.
+
+### Task Board
+- Moved: “Refactor workflow into llm/ with JSON schemas and prompts” → Done.
+- Added: Wire stream memory into `additional_context_json` (future runs) → Todo.
+
 Guidelines
 - Keep tasks actionable and testable; prefer TDD where feasible.
 - Reference the relevant service path (e.g., `services/api/backend/`).

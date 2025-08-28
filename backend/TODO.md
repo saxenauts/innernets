@@ -42,6 +42,7 @@ Phase 5 — Search Agent (Exa-first, SDK contract)
 - [x] Exa client wrapper + caps + cost accounting in workers (no public endpoints)
 - [ ] Guardrails: caps on queries/reads, novelty share
 - [ ] Tests: cost caps, latency budget, correctness invariants
+- [ ] Improve cost accounting granularity across steps (search vs contents per round), and include token costs (prompt/completion, per step)
 
 New — Job System Bring-up (dev)
 - [x] Add scheduler usage docs and demo; in-app runner and Procfile added
