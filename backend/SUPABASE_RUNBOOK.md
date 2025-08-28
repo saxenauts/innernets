@@ -46,6 +46,19 @@ select id, display_name, time_zone, created_at, updated_at from public.profiles 
 ```
 - Note: RLS policies are enforced by the API (auth/anon roles). SQL Editor bypasses RLS. We’ll validate RLS via the backend API once endpoints are added.
 
+Streams, URL Registry, and Curations (0003)
+- Apply migration `backend/migrations/2025-08-29_0003_streams_curations_urls.sql` in dev.
+- Quick checks:
+  - Insert a row into `urls` via the SQL editor, then select it with an `authenticated` session to confirm read access.
+  - Create a `streams` row for your test user (or use the API as described below) and verify you cannot see another user’s streams.
+  - Create a `curation_runs` row (pointing to your stream) and verify clusters/links enforce ownership via joins.
+
+Backend API checks (dev)
+- With a valid Supabase access token (from the test user):
+  - `POST /streams` → create a stream (also creates a schedule).
+  - `POST /streams/{id}/run` → returns 202 with `{ job_id, status: 'queued' }`.
+  - Once the background loop processes the job, `GET /streams/{id}/latest` should return a run with curations and resolved links.
+
 Testing the Backend with JWT + RLS
 - Obtain a Supabase access token (e.g., from your frontend session or using `supabase.auth.signInWithPassword`).
 - Ensure `backend/.env` has `SUPABASE_JWT_SECRET` set.

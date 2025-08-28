@@ -9,9 +9,10 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Security-first: least-privilege DB access, no secrets in repo, input validation, OWASP basics.
 - Portability: provider-agnostic, function-first LLM adapter; scheduler that can scale or be swapped later.
 
-## Initial Architecture (FastAPI chosen)
+## Architecture (FastAPI + Scheduler + Streams)
 - API layer: FastAPI app (`backend/src/app/main.py`) with a minimal health endpoint.
-- Search Agent service: consumes schedules, runs the Exa-first plan in `docs/search-only-plan.md` (coming next).
+- Streams API: user-created Streams (`mission`, `sources_hints`, `cadence`) with CRUD and Run Now; latest curations endpoint.
+- Search Agent service: consumes streams and schedules, runs the Exa-first plan (LLM steps centralized in `llm/search_steps.py`).
 - Job Scheduler/Worker: polls due schedules and executes jobs; ensures idempotency and safe retries.
 - LLM Adapter: unifies Azure OpenAI and OpenAI native under one interface.
 - Data: Supabase (Postgres). Use service-role key server-side; never commit keys.
@@ -36,9 +37,11 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 
 ## Data Model (overview; see SCHEMA.md)
 - Users: Supabase Auth users (canonical). Local `profiles` for app-specific fields.
-- Schedules: user-defined cadence per Stream/mission; timezone-aware.
-- Jobs & Runs: queued work and execution records with idempotency keys and metrics.
-- Queries, Sources, Results: capture inputs and outcomes for auditability and learning.
+- Streams: user-defined mission + cadence (+ optional sources_hints) with RLS.
+- URL registry: global table of URLs with optional title/description; updated opportunistically.
+- Curations: per-run clusters with linked URL IDs; owned via stream → run.
+- Schedules: user-owned cadence rows; created when a stream is created; `meta.stream_id` ties schedule to stream.
+- Jobs & Runs: queued work and execution records with idempotency; ticker enqueues, worker claims and executes.
 
 ## API & Contracts (typed via Pydantic)
 - Rule: service boundaries return and accept Pydantic models — no plain dicts.
@@ -119,14 +122,26 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 ## Search Workflow (LLM steps, ID-first)
 - Location: `backend/src/app/llm/search_steps.py`
 - Steps:
-  - Generate 10 queries with routing (`query_type: keyword|neural`).
-  - Filter candidates → return 2–3 short IDs only (no URLs).
+  - Generate 5 queries with routing (`query_type: keyword|neural`).
+  - Filter candidates (LLM) from the full deduped set (no cap) → return 2–3 `selected_ids` (IDs only).
   - Propose 3–6 follow-up queries (diversity and adjacency).
   - Consolidate curations → 2–6 clusters with `title`, `hook`, and 3–4 `link_ids`.
 - Orchestrator: `backend/src/app/agents/search_workflow.py` assigns IDs ("01", "02", …), maps IDs ↔ URLs, reads contents for selected IDs, runs follow-up search, and consolidates.
-- Token discipline: pass compact context (title, domain, short snippets/summaries). LLMs never see raw URLs.
+- Token discipline: pass compact context (title, domain, short snippets/summaries). LLMs never see raw URLs. Temperature is fixed at 1.0 across steps.
+- Context wiring: at t=0 `additional_context_json = {}`; at t>0 pass compact summary of the latest run (`curations_repo.get_previous_context`).
 - Exa routing: 25 results per query; `keyword` vs `neural` per item.
 
 ## LLM Structured Outputs Notes
 - Integer fields: prompts and provider system message emphasize whole numbers for integer-typed fields.
 - Repair attempt: on validation failure, the adapter performs one repair call with the validation error details to elicit corrected JSON.
+
+
+### Output shape for frontend
+- Curations (final): `{ title, hook, links: [{ url, title?, domain }], position }` exposed by `GET /streams/:id/latest`.
+- The worker maps ephemeral `link_ids` → `url_id` via the URL registry and exposes resolved links.
+
+### Frontend integration checklist
+- Auth: use Supabase access token in `Authorization: Bearer <token>` for all user‑scoped endpoints.
+- Streams: implemented (`POST/GET/PUT /streams`, `POST /streams/:id/run`).
+- Results: implemented (`GET /streams/:id/latest`) with resolved links.
+- UI: render curations (title + hook + links); "Run Now" triggers a job; scheduled runs will append curations per cadence.

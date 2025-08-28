@@ -9,7 +9,6 @@ Non-Goals (for now)
 - Prompt safety scanning (placeholder hooks only).
 
 - Core entrypoints
-  - invoke_tools(messages, tools, options) -> tool_calls[] (only when we explicitly want function-calling)
   - structured({ instruction, context, schema{name, schema} }, options) -> output (validated JSON per schema)
 - map_errors(provider_error): normalized { code, message, retry_after?, provider_code, status }
 - compute_cost(usage, model): optional; configurable pricing table (not hard-coded)
@@ -39,7 +38,7 @@ Testing Strategy
 
 Azure Notes
 - Uses Chat Completions exclusively for structured JSON, with `response_format=json_object` and client-side Pydantic validation.
-- For `gpt-5`, enforces `temperature=1.0` and omits token limit parameters.
+- Enforces `temperature=1.0` for consistent structured outputs.
 - Adds schema-aware steering (top-level keys and array item keys) and a single self-correction pass if validation fails.
 
 Change Log
@@ -47,3 +46,12 @@ Change Log
 - 2025-08-27 — Implemented function-first adapter with Azure provider and tool registry scaffolding.
 - 2025-08-27 — Added structured-output entrypoint to avoid chat/tool selection; aligns with workflow steps.
 - 2025-08-27 — Simplified Azure provider: try Responses API; on any failure, fall back to Chat Completions with json_object and client-side schema validation. Handles gpt-5 Azure specifics (temperature=1.0, no max_tokens parameter).
+
+
+Search Steps (where schemas live)
+- `backend/src/app/llm/search_steps.py` defines Pydantic models + wrappers for:
+  - GenerateQueriesOut (5 queries; each has `query`, `query_type`)
+  - FilterCandidatesOut (`selected_ids: List[str]`)
+  - ProposeFollowupsOut (3–6 follow-up queries)
+  - ConsolidateOut (`curations` with `title`, `hook`, `link_ids`)
+- Prompts in `backend/src/app/llm/prompts.py` use double‑braced variables and are substituted programmatically.

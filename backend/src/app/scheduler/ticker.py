@@ -105,6 +105,12 @@ def tick(max_jobs: int = 25) -> List[Dict[str, Any]]:
             meta_params = {}
 
         payload = {"agent": "search_only_v1", "params": {"schedule_id": schedule_id, **(meta_params or {})}}
+        # If this schedule is tied to a stream (as created by streams_repo), include stream_id
+        try:
+            if isinstance(meta, dict) and meta.get("stream_id"):
+                payload["stream_id"] = meta.get("stream_id")
+        except Exception:
+            pass
         job = enqueue_job(
             user_id=user_id,
             payload=payload,

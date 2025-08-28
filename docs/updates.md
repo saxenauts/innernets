@@ -3,6 +3,7 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-08-29 — Streams + URL registry + curations storage implemented; Streams API added (create/list/get/update/run-now/latest). Orchestrator persists runs and maps link IDs to URL registry. Frontend integrated with API: login via Supabase password grant, create streams, list streams, view latest curations, and trigger Run Now. CORS enabled for dev. (ref: backend migrations 0003; backend/src/app/routes/streams.py; backend/src/app/agents/search_workflow.py; frontend src/pages/Login/Onboarding/Streams/StreamView)
 - 2025-08-28 — Scheduler runtime integrated: added in-app background scheduler (thread) and standalone worker entrypoint; one-command launcher (`app.run_backend`) and Procfile provided. Ticker hardened with due-filter guard and scheduled payload now hydrated from schedule meta params. Enhanced demo to stress queue and print per-job outputs. (ref: backend/src/app/main.py, backend/src/app/scheduler/{runner.py,worker_main.py,ticker.py,demo.py}, backend/src/app/run_backend.py, backend/Procfile)
 - 2025-08-28 — Fixed structured outputs for search workflow: enforced integer 0–100 scoring via prompt update and Pydantic validator (coercion from 0–5 floats). Tightened Azure provider system hint to avoid decimals for integer fields. Added unit test for score coercion. (ref: backend/src/app/llm/schemas.py, backend/src/app/llm/prompts.py, backend/src/app/llm/providers/azure_openai.py, backend/tests/test_llm_schema_coercion.py, backend/src/app/agents/search_workflow.py)
 - 2025-08-27 — Refined Exa integration: removed public `/exa/*` routes; workers call `exa-py` directly via `ExaClient`. Updated docs and tests accordingly. (ref: backend/src/app/clients/exa_client.py, backend/EXA_USAGE.md)
@@ -75,3 +76,9 @@ Guidelines
 - Keep tasks actionable and testable; prefer TDD where feasible.
 - Reference the relevant service path (e.g., `services/api/backend/`).
 - After completing a task, update this board and the service’s `AGENTS.md`.
+
+
+## 2025-08-28 — Search Refinements (cost + fidelity)
+- Reduced query generation to exactly 5 to lower Exa fanout cost.
+- Removed candidate cap: pass all deduped candidates to the LLM for filtering.
+- Updated live full‑trace test to print each step’s raw prompts/outputs.

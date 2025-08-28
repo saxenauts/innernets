@@ -8,6 +8,7 @@
 
 ## Commands
 - `npm run dev` — start Vite.
+
 - `npm run build` — type-check + build.
 - `npm run preview` — serve the build.
 - `npm run test` — unit tests (jsdom).
@@ -27,13 +28,19 @@
 - Avoid translucent surfaces beneath overlays to prevent bleed-through.
 
 ## Flows
-- Login (`/`): mock auth → onboarding.
-- Onboarding (`/onboarding`): capture `mission`, optional `sources`, and `cadence` (via Select); values persist to localStorage.
-- Streams (`/streams`): list mission (if any) + mock streams.
-- StreamView (`/streams/:id`): shows items with external links; first few marked “New”.
+- Login (`/`): Supabase password grant (Vite env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → onboarding. Falls back to mock in dev if env missing.
+- Onboarding (`/onboarding`): Create Stream via `POST /streams`; navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
+- Streams (`/streams`): loads from `GET /streams`; falls back to mock + saved mission if API unavailable.
+- StreamView (`/streams/:id`): loads `GET /streams/:id/latest`. “Run Now” triggers `POST /streams/:id/run` and shows queued status.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).
 - Keep changes small and token-driven; avoid ad-hoc colors.
+
+## Environment
+- Create `frontend/.env.local` with:
+  - `VITE_API_BASE_URL=http://localhost:8000`
+  - `VITE_SUPABASE_URL=https://<your-supabase-ref>.supabase.co`
+  - `VITE_SUPABASE_ANON_KEY=<your-anon-key>`
 
 See `docs/updates.md` for change history.

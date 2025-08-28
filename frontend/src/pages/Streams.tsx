@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import StreamCard from '../components/StreamCard';
 import { streams as baseStreams, type Stream } from '../mocks/mock-data';
+import { api } from '../lib/api';
 
 function fromOnboarding(): Stream | null {
   const mission = localStorage.getItem('in_onboarding_mission');
@@ -13,7 +15,21 @@ function fromOnboarding(): Stream | null {
 }
 
 export default function Streams() {
-  const list: Stream[] = [fromOnboarding(), ...baseStreams].filter(Boolean) as Stream[];
+  const [list, setList] = useState<Stream[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<any[]>('/streams');
+        const mapped: Stream[] = res.map((r) => ({ id: r.id, name: r.mission?.slice(0, 60) || 'Stream', description: r.mission || '', items: [] }));
+        if (!cancelled) setList(mapped);
+      } catch {
+        const fallback: Stream[] = [fromOnboarding(), ...baseStreams].filter(Boolean) as Stream[];
+        if (!cancelled) setList(fallback);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   return (
     <div className="container-page py-10">
       <header className="mb-6">

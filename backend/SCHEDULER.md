@@ -44,14 +44,14 @@ Minimal Interfaces
 
 Workflow vs. Loop
 - Each job executes a deterministic, acyclic workflow for the search agent:
-  1) Generate search queries (LLM)
-  2) Call Exa search
-  3) Filter candidates to read (LLM)
-  4) Call Exa content/ to read the candidates
-  5) Use previous context and suggest follow-ups search (LLM)
-  6) Search again with Exa
-  5) Compose and consolidate entirety of above as an output (LLM)
-- Steps run serially; outputs flow into the next step. Future prompt/schema changes should be isolated within `agents/search_workflow` without changing scheduler contracts.
+  1) Generate 5 search queries (LLM)
+  2) Exa search per query (25 results), dedupe, assign IDs
+  3) Filter candidates to read (LLM) — pass all deduped candidates (IDs only), select 2–3
+  4) Exa contents for selected IDs; compact summaries
+  5) Propose 3–6 follow‑up queries (LLM)
+  6) Exa search for follow‑ups (continue ID numbering)
+  7) Consolidate curations (LLM) with titles, hooks, 3–4 link_ids each
+- Steps run serially; outputs flow into the next step. Prompt/schema changes are isolated in `llm/search_steps.py` and `llm/prompts.py`. The orchestrator enforces IDs‑only to the LLM and maintains the ID↔URL mapping.
 
 Call Graph (dev)
 - `worker.dev_loop()`

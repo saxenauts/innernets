@@ -24,6 +24,8 @@ from app.clients.exa_client import get_exa_client
 from app.clients.exa_schemas import SearchResponse, ContentsResponse, ResultWithContent
 from app.llm.types import ProviderConfig, InvokeOptions
 from app.llm import search_steps as steps
+from app.repositories import curations_repo, urls_repo
+from app.supabase_client import get_service_client
 
 
 class SearchJobParams(BaseModel):
@@ -217,9 +219,8 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     params_raw = payload.get("params") or {}
     try:
         params = SearchJobParams(**params_raw)
-    except Exception as e:
-        # Fallback to a minimal default mission so the worker doesn't crash
-        params = SearchJobParams(mission=str(params_raw or "Web research mission"))
+    except Exception:
+        params = None  # will resolve below
 
     # Provider config for LLM
     cfg = ProviderConfig.from_env()
@@ -228,8 +229,31 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     # Usage accumulator (LLM)
     usage_total = {"prompt": 0, "completion": 0, "total": 0}
 
-    # 1) Generate search queries (LLM, 10 items)
-    q_out = steps.generate_search_queries(cfg, params.mission, additional_context={}, options=opts)
+    # Optional: stream-backed run context
+    payload_type = (payload.get("type") or "").strip()
+    stream_id: Optional[str] = payload.get("stream_id") if isinstance(payload.get("stream_id"), str) else None
+    additional_ctx: Dict[str, Any] = {}
+    if stream_id:
+        # Load mission from streams table if params missing
+        if params is None:
+            try:
+                resp = get_service_client().table("streams").select("mission, sources_hints, cadence").eq("id", stream_id).limit(1).execute()
+                data = (resp.data or [None])[0]
+                if not data:
+                    raise RuntimeError("Stream not found")
+                params = SearchJobParams(mission=data.get("mission") or "Web research mission")
+            except Exception:
+                params = SearchJobParams(mission="Web research mission")
+        try:
+            additional_ctx = curations_repo.get_previous_context(stream_id) or {}
+        except Exception:
+            additional_ctx = {}
+    # If still None, synthesize minimal params
+    if params is None:
+        params = SearchJobParams(mission=str(params_raw or "Web research mission"))
+
+    # 1) Generate search queries (LLM)
+    q_out = steps.generate_search_queries(cfg, params.mission, additional_context=additional_ctx, options=opts)
     queries: List[steps.QueryItem] = list(q_out.queries or [])
     if not queries:
         # Safety fallback: 10 copies of mission as keyword
@@ -258,7 +282,13 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     next_id, id_to_url, id_to_meta, candidates_ctx = _assign_ids(initial_results, next_id, keep_for_llm=None)
 
     # 3) Filter candidates (LLM) → select 2–3 IDs
-    filt_out = steps.filter_candidates(cfg, params.mission, candidates=candidates_ctx, additional_context={}, options=InvokeOptions(temperature=1.0, max_tokens=256))
+    filt_out = steps.filter_candidates(
+        cfg,
+        params.mission,
+        candidates=candidates_ctx,
+        additional_context=additional_ctx,
+        options=InvokeOptions(temperature=1.0, max_tokens=256),
+    )
     selected_ids = [sid for sid in (filt_out.selected_ids or []) if sid in id_to_url]
     if len(selected_ids) < 2:
         # Fallback: take first two candidates if available
@@ -283,7 +313,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
         initial_queries=queries,
         filtered_ids=selected_ids,
         read_summaries=read_summaries,
-        additional_context={},
+        additional_context=additional_ctx,
         prior_urls=[],
         options=InvokeOptions(temperature=1.0, max_tokens=512),
     )
@@ -314,7 +344,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
         cfg,
         params.mission,
         all_items=all_items_for_consolidation,
-        additional_context={},
+        additional_context=additional_ctx,
         options=InvokeOptions(temperature=1.0, max_tokens=768),
     )
 
@@ -345,8 +375,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     except Exception:
         pass
 
-    # Scheduler-facing dict: maintain old fields for compatibility and add 'curations'
-    return {
+    result_dict: Dict[str, Any] = {
         "agent": payload.get("agent", "search_only_v1"),
         "queries": len(output.queries),
         "reads": output.reads,
@@ -360,4 +389,45 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
         "usage_tokens": output.usage_tokens,
         "followups": [f.model_dump(mode="json") for f in followups],
         "curations": output.curations,
+        # Internal map for persistence: id -> url
+        "id_url_map": id_to_url,
     }
+
+    # Persist when running for a stream
+    if stream_id:
+        run_row = None
+        try:
+            run_row = curations_repo.create_curation_run(stream_id=stream_id, job_id=job.get("id"), status="running")
+            # Insert clusters + links
+            clusters_payload: List[Dict[str, Any]] = []
+            for idx, c in enumerate(cons_out.curations or []):
+                clusters_payload.append({"title": c.title, "hook": c.hook, "position": idx})
+            cluster_rows = curations_repo.insert_clusters(run_row["id"], clusters_payload) if clusters_payload else []
+            # Map back link_ids
+            for c_idx, row in enumerate(cluster_rows):
+                try:
+                    cur = (cons_out.curations or [])[c_idx]
+                except Exception:
+                    continue
+                link_refs: List[Dict[str, Any]] = []
+                for j, lid in enumerate(cur.link_ids or []):
+                    url = id_to_url.get(lid)
+                    if not url:
+                        continue
+                    meta = id_to_meta.get(lid, {})
+                    url_row = urls_repo.ensure_url(url, title=meta.get("title"), domain=meta.get("domain"))
+                    link_refs.append({"url_id": url_row["id"], "snapshot_title": meta.get("title"), "position": j})
+                if link_refs:
+                    curations_repo.insert_cluster_links(row["id"], link_refs)
+            curations_repo.complete_curation_run(run_row["id"], status="succeeded", metrics=result_dict)
+        except Exception as e:
+            if run_row and run_row.get("id"):
+                try:
+                    curations_repo.complete_curation_run(run_row["id"], status="failed", metrics={"error": str(e)})
+                except Exception:
+                    pass
+            # Re-raise to let worker mark infra run as failed
+            raise
+
+    # Scheduler-facing dict
+    return result_dict

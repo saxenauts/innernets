@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/auth';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
+import { TextareaHTMLAttributes } from 'react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -10,11 +11,34 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // Mock auth
-    if (email.trim()) {
-      login(email.trim());
+    const em = email.trim();
+    if (!em) return;
+    try {
+      // Try Supabase password grant (dev)
+      const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
+      const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        // fallback to mock auth if env not present
+        login(em);
+        navigate('/onboarding');
+        return;
+      }
+      const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email: em, password }),
+      });
+      if (!res.ok) throw new Error(`Supabase login failed: ${res.status}`);
+      const data = await res.json();
+      const token = data?.access_token as string | undefined;
+      if (!token) throw new Error('No access_token');
+      login(em, token);
+      navigate('/onboarding');
+    } catch (err) {
+      // graceful fallback to mock auth
+      login(em);
       navigate('/onboarding');
     }
   };

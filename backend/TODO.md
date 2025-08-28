@@ -27,7 +27,6 @@ Phase 3 — LLM Adapter (Azure/OpenAI)
   - Notes: implement exponential backoff with jitter on 429/5xx and honor `Retry-After`.
 - [x] Tests: contract/error (usage parsed)
 - [x] Live tests: structured outputs across 4 functions (Azure)
-- [ ] Optional: streaming support
 
 Phase 4 — Scheduler & Jobs
 - [x] Create migrations for schedules/jobs/runs tables
@@ -67,9 +66,10 @@ Notes
  - [x] Auth: replace dev header with Supabase JWT verification
  - [ ] Frontend: wire profile view/edit — TODO
 - Prompt Refactor (new)
-- [ ] Centralize prompts with JSON Schema guidance for all functions
-- [ ] Use consistent, minimal system prompts and parameterized user prompts
-- [ ] Validate and self-correct patterns standardized across providers
+- [x] Centralize prompts with JSON Schema guidance for all functions
+- [x] Use consistent, minimal system prompts and parameterized user prompts
+- [x] Validate and self-correct patterns standardized across providers
 
 Status Summary
 - Done so far: backend DB scaffold, Supabase auth (profiles API), LLM adapter with structured outputs, scheduler ticker/worker with demo and in-app runtime.
+- Done so far: search step functions with prompts

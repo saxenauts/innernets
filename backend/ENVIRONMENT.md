@@ -66,11 +66,19 @@ Supabase Setup (quick start)
 - In your project, go to Settings → API:
   - Copy the Project URL into `SUPABASE_URL`.
   - Copy the Service Role Key into `SUPABASE_SERVICE_ROLE_KEY` (server-side only).
+  - Copy the JWT Secret into `SUPABASE_JWT_SECRET` (backend verifies access tokens with this). Ensure `SUPABASE_JWT_AUD=authenticated` (default).
+  - Copy the anon public key into `SUPABASE_ANON_KEY` (used client-side for password grant and server-side to create user-scoped clients that enforce RLS).
 - Optional: Database → Connection Strings → Postgres. Copy the URI into `POSTGRES_CONNECTION_STRING` if you prefer direct DB access.
 - Keep Row Level Security on (default). We will define policies with migrations later.
 
 Dev Test Token Generation
 cd backend & bash ./supa_mint_test_token.sh free@meme.com hehemama
+
+Troubleshooting 401 (Unauthorized)
+- Ensure the frontend is sending `Authorization: Bearer <access_token>` for API calls. In dev, Login performs a Supabase password grant to obtain this token using Vite envs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- Ensure backend env `SUPABASE_JWT_SECRET` matches your Supabase project (Settings → API). If missing/mismatched, JWT verification fails.
+- Ensure the token audience is `authenticated` (default). Backend expects `SUPABASE_JWT_AUD=authenticated`.
+- Start the API from `backend/` or set `DOTENV_PATH=backend/.env` so env is loaded.
 
 Change Log
 - 2025-08-26 — Initial environment matrix for DB, providers, scheduling, telemetry.

@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Select } from '../components/ui/select';
+import { api } from '../lib/api';
 
 const MISSION_KEY = 'in_onboarding_mission';
 const SOURCES_KEY = 'in_onboarding_sources';
@@ -13,12 +14,19 @@ export default function Onboarding() {
   const [cadence, setCadence] = useState<string>(localStorage.getItem(CADENCE_KEY) || 'weekly');
   const navigate = useNavigate();
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    localStorage.setItem(MISSION_KEY, mission.trim());
-    localStorage.setItem(SOURCES_KEY, sources.trim());
-    localStorage.setItem(CADENCE_KEY, cadence);
-    navigate('/streams');
+    try {
+      const body = { mission: mission.trim(), sources_hints: sources.trim() || undefined, cadence };
+      const created = await api.post<{ id: string }>('/streams', body);
+      navigate(`/streams/${encodeURIComponent(created.id)}`);
+    } catch (err) {
+      // Fallback to local storage if API unavailable
+      localStorage.setItem(MISSION_KEY, mission.trim());
+      localStorage.setItem(SOURCES_KEY, sources.trim());
+      localStorage.setItem(CADENCE_KEY, cadence);
+      navigate('/streams');
+    }
   };
 
   return (

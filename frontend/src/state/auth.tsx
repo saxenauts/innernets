@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 type AuthContextType = {
   authed: boolean;
-  login: (email: string) => void;
+  login: (email: string, token?: string) => void;
   logout: () => void;
   userEmail?: string;
 };
@@ -10,6 +10,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const KEY = 'in_authed_user';
+const TOKEN_KEY = 'in_test_bearer';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState<string | undefined>();
@@ -24,13 +25,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextType>(() => ({
     authed: !!email,
     userEmail: email,
-    login: (e: string) => {
+    login: (e: string, token?: string) => {
       setEmail(e);
       localStorage.setItem(KEY, JSON.stringify({ email: e }));
+      if (token && token.trim()) {
+        localStorage.setItem(TOKEN_KEY, JSON.stringify({ token: token.trim() }));
+      }
     },
     logout: () => {
       setEmail(undefined);
       localStorage.removeItem(KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
   }), [email]);
 
@@ -42,4 +47,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-
