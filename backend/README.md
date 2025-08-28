@@ -28,7 +28,16 @@ Development (Poetry)
 - Install deps: `cd backend && poetry install`
 - Env: from repo root, create `.env` from `.env.dev` and fill values: `cp .env.dev .env`
 - Run tests: `poetry run pytest`
-- Run API (dev): `poetry run uvicorn app.main:app --reload`
+- Run API only: `poetry run uvicorn app.main:app --reload`
+  - Or run API + in‑app scheduler (single process): `poetry run python -m app.run_backend`
+    - This enables a background scheduler thread via `SCHEDULER_IN_APP=1`.
+  - Split processes (recommended for realism):
+    - API: `poetry run uvicorn app.main:app --reload`
+    - Worker: `poetry run python -m app.scheduler.worker_main`
+  - Procfile (optional, for honcho/foreman):
+    - `web: poetry run python -m app.run_backend`
+    - `worker: poetry run python -m app.scheduler.worker_main`
+    - Run: `poetry run honcho start -f Procfile` (if installed).
   - Auth: pass `Authorization: Bearer <supabase_access_token>` when calling `/me/profile`.
   - Get the token from your frontend session or Supabase Auth, and set `SUPABASE_JWT_SECRET` in `backend/.env`.
   - Audience: tokens from Supabase use `aud: "authenticated"`. Backend verifies this by default; override with `SUPABASE_JWT_AUD` if needed.

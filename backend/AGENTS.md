@@ -60,6 +60,11 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Use DB row-level locking to prevent duplicate claims in multi-worker setups.
 - Upgrade path: swap to a distributed queue (e.g., Celery/Redis) or managed scheduler; keep contracts stable.
 
+## Scheduler Runtime Modes
+- In-App (default for `app.run_backend`): a background thread runs the ticker and worker loop inside FastAPI. Toggle with `SCHEDULER_IN_APP=1`.
+- Split Processes: run API and worker separately (see `app.scheduler.worker_main`). Keep exactly one ticker process to avoid redundant enqueues.
+- Demo & Stress: `app.scheduler.demo` enqueues scheduled and ad‑hoc jobs, prints queue snapshots and per‑job outputs, and supports timing lags to observe behavior.
+
 ## LLM Adapter Strategy (summary)
 - Structured JSON first: single-entrypoint `structured(instruction, context, schema)` returning Pydantic-validated outputs.
 - Provider adapters: Azure OpenAI (Chat Completions + `response_format=json_object`) and OpenAI native (TBD).
@@ -110,3 +115,8 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Log changes and move tasks in `docs/updates.md`.
 - Prompt architecture: adopt JSON Schema-guided prompts for all functions; centralize and refactor prompt templates after functions are stable.
 - Agents rule: return Pydantic models at boundaries (no plain dicts); define schemas alongside agents.
+
+## LLM Structured Outputs Notes
+- Integer fields: prompts and provider system message emphasize whole numbers for integer-typed fields.
+- Candidate scoring: if the model returns floats on a 0–5 scale, backend coerces to 0–100 via ×20 and rounding; other numeric inputs are rounded and clamped to [0,100].
+- Repair attempt: on validation failure, the adapter performs one repair call with the validation error details to elicit corrected JSON.

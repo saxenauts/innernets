@@ -1,4 +1,5 @@
 import os
+import json
 import pytest
 
 
@@ -19,7 +20,7 @@ def test_search_workflow_live_end_to_end():
         "payload": {
             "agent": "search_only_v1",
             "params": {
-                "mission": "AI tools with persistent user memory & context",
+                "mission": "New Hardware to run AI models consumer grade",
                 "hints": ["site:github.com", "recent"],
                 "search_type": "keyword",
                 "num_results_per_query": 3,
@@ -33,5 +34,5 @@ def test_search_workflow_live_end_to_end():
     out = sw.run(job)
     assert out["queries"] >= 1
     assert isinstance(out.get("items"), list)
-    # Useful prints for manual verification
-    print("Workflow metrics:", out)
+    # Useful prints for manual verification (run with -s or --capture=tee-sys)
+    print("Workflow metrics (pretty):\n" + json.dumps(out, indent=2, sort_keys=True))

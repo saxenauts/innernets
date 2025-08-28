@@ -13,6 +13,25 @@ from ..supabase_client import get_service_client
 from .jobs import enqueue_job
 
 
+def _parse_ts(value: Any):
+    """Parse ISO8601-ish string into aware datetime (UTC on failure)."""
+    import datetime as pydt
+    if isinstance(value, pydt.datetime):
+        return value
+    if not value:
+        return pydt.datetime.max.replace(tzinfo=pydt.timezone.utc)
+    s = str(value)
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = pydt.datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=pydt.timezone.utc)
+        return dt
+    except Exception:
+        return pydt.datetime.max.replace(tzinfo=pydt.timezone.utc)
+
+
 def _calc_next_run(current: datetime, cadence: str, tz: str) -> datetime:
     """Compute next run time. For now, support simple intervals like PT1H/PT30M.
 
@@ -47,7 +66,17 @@ def tick(max_jobs: int = 25) -> List[Dict[str, Any]]:
         except Exception:
             pass
     resp = q.order("next_run_at").limit(max_jobs).execute()
-    schedules: List[Dict[str, Any]] = resp.data or []
+    raw_schedules: List[Dict[str, Any]] = resp.data or []
+    # Defensive: also filter client-side to only include due schedules
+    schedules: List[Dict[str, Any]] = []
+    for sch in raw_schedules:
+        try:
+            nra = _parse_ts(sch.get("next_run_at"))
+            if nra <= now:
+                schedules.append(sch)
+        except Exception:
+            # if parse fails, skip
+            continue
 
     enqueued: List[Dict[str, Any]] = []
     for sch in schedules:
@@ -58,9 +87,27 @@ def tick(max_jobs: int = 25) -> List[Dict[str, Any]]:
 
         # deterministic idempotency key per schedule/time window
         idk = f"sch:{schedule_id}:at:{int(now.timestamp())//60}"  # minute bucket
+        # Hydrate params from schedule.meta if present
+        meta = sch.get("meta") or {}
+        meta_params = {}
+        try:
+            # Support either flat keys or nested under 'params'
+            mp = meta.get("params") if isinstance(meta, dict) else None
+            if isinstance(mp, dict):
+                meta_params = dict(mp)
+            elif isinstance(meta, dict):
+                meta_params = {k: v for k, v in meta.items() if k in {
+                    "mission", "hints", "include_domains", "exclude_domains",
+                    "search_type", "num_results_per_query", "read_top_k",
+                    "max_chars_per_page", "compose_items_limit"
+                }}
+        except Exception:
+            meta_params = {}
+
+        payload = {"agent": "search_only_v1", "params": {"schedule_id": schedule_id, **(meta_params or {})}}
         job = enqueue_job(
             user_id=user_id,
-            payload={"agent": "search_only_v1", "params": {"schedule_id": schedule_id}},
+            payload=payload,
             schedule_id=schedule_id,
             idempotency_key=idk,
         )
@@ -71,7 +118,7 @@ def tick(max_jobs: int = 25) -> List[Dict[str, Any]]:
         cadence = sch.get("cadence", "PT1H")
         # Use schedule's current next_run_at as the base to avoid drift, but ensure monotonicity
         try:
-            base = datetime.fromisoformat(str(sch.get("next_run_at")))
+            base = _parse_ts(sch.get("next_run_at"))
         except Exception:
             base = now
         next_at = _calc_next_run(base if base > now else now, cadence, tz)

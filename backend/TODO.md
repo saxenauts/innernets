@@ -21,7 +21,7 @@ Phase 2 — Environment & Clients
 
 Phase 3 — LLM Adapter (Azure/OpenAI)
 - [x] Implement adapter baseline (function-first, non-stream)
-- [ ] Normalize errors and usage metrics
+- [x] Normalize errors and usage metrics
   - Notes: provider HTTP errors mapped to `ProviderError` JSON in exception; usage parsed from provider payload.
 - [ ] Add retry/backoff and rate-limit handling
   - Notes: implement exponential backoff with jitter on 429/5xx and honor `Retry-After`.
@@ -31,25 +31,24 @@ Phase 3 — LLM Adapter (Azure/OpenAI)
 
 Phase 4 — Scheduler & Jobs
 - [x] Create migrations for schedules/jobs/runs tables
-- [ ] Implement ticker (poller) and job enqueuer
-- [ ] Implement executor (idempotent run wrapper)
-- [ ] Observability: metrics + logs + run audit trail
-- [ ] Tests: idempotency, retry, cron/interval calculations
+- [x] Implement ticker (poller) and job enqueuer (includes schedule meta payload hydration, due-filter hardening)
+- [x] Implement executor (idempotent run wrapper) — `worker.run_once` and in-app runner thread
+- [ ] Observability: metrics + logs + run audit trail (basic logs done; expand structured fields later)
+- [x] Tests: enqueue/claim/execute, ticker cadence advance
 
 Phase 5 — Search Agent (Exa-first, SDK contract)
-- [ ] Define internal contracts for the two-step loop (inputs/outputs)
-- [ ] Implement Step A/B orchestration (no UI yet)
-- [ ] Persist queries/results and per-run metrics
-- [x] Backend Exa endpoints (search + contents), caps + cost metering
+- [x] Define internal contracts and implement orchestration in `agents.search_workflow`
+- [ ] Persist queries/results and per-run metrics (currently metrics only on runs)
+- [x] Exa client wrapper + caps + cost accounting in workers (no public endpoints)
 - [ ] Guardrails: caps on queries/reads, novelty share
 - [ ] Tests: cost caps, latency budget, correctness invariants
 
 New — Job System Bring-up (dev)
-- [ ] Add scheduler usage docs with env (DEV_TEST_USER_TOKEN) and dev run instructions
-- [ ] Add `scheduler.jobs` helpers and `scheduler.worker` dev loop
+- [x] Add scheduler usage docs and demo; in-app runner and Procfile added
+- [x] Add `scheduler.jobs` helpers and `scheduler.worker` loop
 - [x] Add `agents.search_workflow` orchestration with metrics
-- [ ] Add tests: enqueue/claim/execute finishes a run and marks job done
-- [ ] Add script/entry to run a one-shot job for a test user
+- [x] Add tests: enqueue/claim/execute and ticker
+- [x] Add script/entry to run worker and demo
 
 Phase X — Operations
 - [ ] Add simple CI (lint, type check, docs check)
@@ -72,4 +71,4 @@ Notes
 - [ ] Validate and self-correct patterns standardized across providers
 
 Status Summary
-- Done so far: backend DB scaffold, Supabase auth (profiles API), and LLM adapter with prompts for 4 functions.
+- Done so far: backend DB scaffold, Supabase auth (profiles API), LLM adapter with structured outputs, scheduler ticker/worker with demo and in-app runtime.

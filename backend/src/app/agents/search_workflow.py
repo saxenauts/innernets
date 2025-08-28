@@ -159,6 +159,8 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     instruction2 = (
         prompts.EVALUATE_CANDIDATES
         + " Score exactly the provided candidates and mark a small subset for reading."
+        + " Scores must be integers from 0 to 100."
+        + " Return schema-only JSON."
     )
     req2 = StructuredRequest(
         instruction=instruction2,
@@ -248,7 +250,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     output = SearchWorkflowResult(
         queries=queries,
         followups=list(followups_out.followups or []),
-        items=[it.model_dump() for it in (composed.items or [])],
+        items=[it.model_dump(mode="json") for it in (composed.items or [])],
         reads=len(to_read),
         cost_exa=float(cost_exa),
         usage_tokens={

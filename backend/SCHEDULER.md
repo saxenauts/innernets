@@ -24,6 +24,13 @@ Usage (dev)
   - call `worker.run_once(handle_job)` to claim one job and execute the workflow
 - For now, Exa calls can be mocked in tests; when ready, set `EXA_API_KEY` and call `agents.search_workflow.run`.
 
+Runtime Modes
+- Single command (API + background scheduler): `poetry run python -m app.run_backend` (sets `SCHEDULER_IN_APP=1`).
+- Split processes:
+  - API: `poetry run uvicorn app.main:app --reload`
+  - Worker: `poetry run python -m app.scheduler.worker_main`
+  - Optional ticker-only loop is not necessary; the worker loop invokes `tick()` each iteration by default.
+
 Contracts
 - Job payload: `{ "agent": "search_only_v1", "params": { "mission": string, "sources": string[]?, "hints": object?, "schedule_id"?: uuid } }`
 - Run metrics: `{ "queries": int, "reads": int, "cost_exa": number, "usage_tokens": {"prompt": int, "completion": int, "total": int } }`
@@ -101,3 +108,54 @@ Security
 
 Change Log
 - 2025-08-26 — Initial DB-driven scheduler and worker design.
+
+## E2E Demo (no mocks)
+
+Run a simple end-to-end exercise that:
+- creates or updates a due schedule for a test user,
+- runs the ticker to enqueue a job,
+- claims and executes the job once via the real worker,
+- prints job/run summaries with workflow metrics.
+
+Prerequisites
+- Supabase service role env set: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- Provider keys set: `EXA_API_KEY`, `AZURE_OPENAI_*`.
+- A valid Supabase Auth user UUID in `SCHEDULE_TEST_USER_ID` (find in Supabase Auth > Users).
+
+Command
+```
+cd backend
+poetry run python -m app.scheduler.demo
+```
+
+Expected Output (truncated)
+```
+[demo] schedule ready: { id, user_id, name, next_run_at, cadence, active }
+[demo] ticker enqueued: [ { id, schedule_id, user_id, status } ]
+[demo] worker processed: 1
+[demo] job/run summary:
+{
+  "job": { "status": "succeeded", ... },
+  "runs": [ { "status": "succeeded", "metrics": { "queries": 2, ... } } ]
+}
+```
+
+Notes
+- The ticker uses an idempotency key per minute bucket; if you run it multiple times within the same minute, you may see no new enqueues.
+- To inspect the DB, check `schedules`, `jobs`, and `runs` tables in Supabase UI.
+
+Enhanced Demo Behavior
+- After the initial tick (scheduled job), the demo enqueues 3 ad‑hoc jobs with explicit missions:
+  - "Hardware advancements for personal computing"
+  - "New research with VR"
+  - "ANC headphone ear health research"
+- It prints the live queue snapshots between steps and processes jobs sequentially, printing per‑job outputs (queries, reads, first items, followups, usage tokens).
+- Timing lags (in seconds) can be tuned via env:
+  - `DEMO_LAG_AFTER_TICK` (default 3)
+  - `DEMO_LAG_BEFORE_THIRD` (default 2)
+  - `DEMO_LAG_BETWEEN_RUNS` (default 1)
+  - `DEMO_SECOND_TICK_DELAY_SEC` (default 0) — if set (e.g., 70 with `SCHEDULE_TEST_CADENCE=PT1M`), the demo waits then runs a second `tick()` to enqueue another scheduled job.
+
+Stress Testing Tips
+- Queue under cadence: set `SCHEDULE_TEST_CADENCE=PT1M` to shorten schedule cadence, then run the demo, wait ~60s and re‑run `poetry run python -m app.scheduler.demo` to see additional scheduled enqueues while ad‑hoc jobs are still processing.
+- Parallel workers: to simulate concurrency, open two shells and run the demo simultaneously, or run the dev loop in one shell and the demo in another. Note: current `claim_jobs` uses a simple select+update (no `SKIP LOCKED`); heavy parallelism may cause contention. This is acceptable for dev stress and helps surface race conditions.

@@ -6,6 +6,7 @@ GENERATE_SEARCH_QUERIES = (
 
 EVALUATE_CANDIDATES = (
     "Given candidate titles/snippets/domains, score for fit, credibility, and novelty."
+    " Use an integer 0–100 scale for the overall score (no decimals)."
     " Mark promising items for reading. Return only the schema fields."
 )
 
@@ -19,4 +20,3 @@ COMPOSE_STREAM_ITEMS = (
     " write a short hook (<=120 chars) and a reason (<=90) for each."
     " Return only the schema fields."
 )
-

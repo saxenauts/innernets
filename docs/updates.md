@@ -3,6 +3,8 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-08-28 — Scheduler runtime integrated: added in-app background scheduler (thread) and standalone worker entrypoint; one-command launcher (`app.run_backend`) and Procfile provided. Ticker hardened with due-filter guard and scheduled payload now hydrated from schedule meta params. Enhanced demo to stress queue and print per-job outputs. (ref: backend/src/app/main.py, backend/src/app/scheduler/{runner.py,worker_main.py,ticker.py,demo.py}, backend/src/app/run_backend.py, backend/Procfile)
+- 2025-08-28 — Fixed structured outputs for search workflow: enforced integer 0–100 scoring via prompt update and Pydantic validator (coercion from 0–5 floats). Tightened Azure provider system hint to avoid decimals for integer fields. Added unit test for score coercion. (ref: backend/src/app/llm/schemas.py, backend/src/app/llm/prompts.py, backend/src/app/llm/providers/azure_openai.py, backend/tests/test_llm_schema_coercion.py, backend/src/app/agents/search_workflow.py)
 - 2025-08-27 — Refined Exa integration: removed public `/exa/*` routes; workers call `exa-py` directly via `ExaClient`. Updated docs and tests accordingly. (ref: backend/src/app/clients/exa_client.py, backend/EXA_USAGE.md)
 - 2025-08-27 — Backend LLM adapter implemented (function-first, Azure); added tool registry, unit tests with mocked HTTP, and updated backend docs/env templates. (ref: backend/src/app/llm/*, backend/tests/test_llm_adapter.py, backend/LLM_ADAPTER.md, backend/ENVIRONMENT.md)
 - 2025-08-27 — Scheduler groundwork: added DB schema (schedules, jobs, runs), env hook for dev test user token, and worker/agent stubs to execute jobs. (ref: backend/migrations/2025-08-27_0002_scheduler.sql, backend/src/app/scheduler/*, backend/src/app/agents/search_workflow.py, backend/SCHEDULER.md, backend/ENVIRONMENT.md, backend/TODO.md)
@@ -34,6 +36,7 @@ Template
 Track work items using simple checklists. Move items between sections as work progresses.
 
 ### Todo
+- [ ] Backend: monitor worker logs and metrics in production-like runs; decide on DB-level RPCs for claim/tick with SKIP LOCKED
 - [ ] Frontend: add empty-states and loading skeletons — frontend
 - [ ] Frontend: item actions placeholders (Save / More-like / Less-like) — frontend
 - [ ] Frontend: add e2e smoke (Playwright) — frontend

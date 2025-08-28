@@ -65,7 +65,9 @@ class AzureOpenAIProvider(LLMProvider):
                 except Exception:
                     pass
             # Generic URL hint: if only domain provided, construct url
-            sys_prompt += " If schema requires a URL and only a domain is present in context, construct it as 'https://<domain>/'."
+            sys_prompt += " If schema requires a URL and only a domain is present in context, construct it as 'https://<domain>/' ."
+            # Generic integer hint to avoid fractional outputs where ints are expected
+            sys_prompt += " If any field type is integer, output whole numbers only (no decimals)."
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": sys_prompt},
             {"role": "user", "content": instruction + "\nReturn valid JSON only."},
@@ -107,7 +109,7 @@ class AzureOpenAIProvider(LLMProvider):
         if req.pydantic_model is not None:
             try:
                 model_inst = req.pydantic_model(**data)
-                data = model_inst.model_dump()
+                data = model_inst.model_dump(mode="json")
             except Exception as e:
                 # One repair attempt: provide validation errors and ask for corrected JSON
                 try:
@@ -137,7 +139,7 @@ class AzureOpenAIProvider(LLMProvider):
                     content2 = resp2.choices[0].message.content  # type: ignore[attr-defined]
                     data2 = json.loads(content2 or "{}")
                     model_inst2 = req.pydantic_model(**data2)
-                    data = model_inst2.model_dump()
+                    data = model_inst2.model_dump(mode="json")
                 except Exception:
                     raise self._raise_err(e)
 
