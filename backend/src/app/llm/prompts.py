@@ -76,9 +76,4 @@ CONSOLIDATE_CURATIONS = (
     "Output JSON: { \n  \"curations\":[\n    {\"title\":\"...\", \"hook\":\"...\", \"link_ids\":[\"..\",\"..\",\"..\"]},\n    ...\n  ]\n}"
 )
 
-# Legacy prompt kept for compatibility with tests (not used by new workflow)
-COMPOSE_STREAM_ITEMS = (
-    "Select ~10–14 items that best serve the mission now. Dedupe near-duplicates,"
-    " write a short hook (<=120 chars) and a reason (<=90) for each."
-    " Return only the schema fields."
-)
+# (no legacy prompts)
