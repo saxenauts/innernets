@@ -21,7 +21,8 @@ def create_stream(user_id: str, token: str, fields: Dict[str, Any]) -> Dict[str,
     payload: Dict[str, Any] = {
         "user_id": user_id,
         "mission": mission,
-        "sources_hints": fields.get("sources_hints"),
+        # Accept either 'sources' (preferred) or legacy 'sources_hints'
+        "sources_hints": fields.get("sources") or fields.get("sources_hints"),
         "cadence": fields.get("cadence") or "weekly",
         "time_zone": fields.get("time_zone") or "UTC",
         "active": True,
@@ -48,7 +49,13 @@ def create_stream(user_id: str, token: str, fields: Dict[str, Any]) -> Dict[str,
 
 def list_streams(user_id: str, token: str) -> List[Dict[str, Any]]:
     st = _streams_table(token)
-    resp = st.select("id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    resp = (
+        st.select("id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at")
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .order("created_at", desc=True)
+        .execute()
+    )
     return resp.data or []
 
 
@@ -61,6 +68,10 @@ def get_stream(stream_id: str, user_id: str, token: str) -> Optional[Dict[str, A
 
 def update_stream(stream_id: str, user_id: str, token: str, fields: Dict[str, Any]) -> Dict[str, Any]:
     patch: Dict[str, Any] = {}
+    # Allow 'sources' as the canonical field at the API boundary; map to sources_hints
+    if "sources" in fields and fields["sources"] is not None:
+        fields = dict(fields)
+        fields["sources_hints"] = fields.get("sources")
     for k in ["mission", "sources_hints", "cadence", "time_zone", "active"]:
         if k in fields and fields[k] is not None:
             patch[k] = fields[k]
@@ -93,8 +104,20 @@ def update_stream(stream_id: str, user_id: str, token: str, fields: Dict[str, An
     return cur
 
 
+def delete_stream(stream_id: str, user_id: str, token: str) -> None:
+    """Soft delete: mark stream inactive and disable its schedule.
+
+    Keeps data for audit/history while removing from default views.
+    """
+    # Disable schedule if present
+    sched = _find_schedule_for_stream(user_id, token, stream_id)
+    if sched:
+        _schedules_table(token).update({"active": False}).eq("id", sched["id"]).execute()
+    # Mark stream inactive
+    _streams_table(token).update({"active": False}).eq("id", stream_id).execute()
+
+
 def _find_schedule_for_stream(user_id: str, token: str, stream_id: str) -> Optional[Dict[str, Any]]:
     resp = _schedules_table(token).select("id, user_id, cadence, time_zone, active, meta").eq("user_id", user_id).contains("meta", {"stream_id": stream_id}).limit(1).execute()
     data = resp.data or []
     return data[0] if data else None
-

@@ -72,7 +72,7 @@ export function Select({ id, value, onValueChange, options, placeholder = 'Selec
         className={cn(
           'h-10 w-full rounded-lg border border-input bg-background px-3 pr-9 text-left text-sm text-foreground',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          'flex items-center justify-between'
+          'transition-colors hover:bg-muted/40 flex items-center justify-between'
         )}
         aria-haspopup="listbox"
         aria-expanded={open}

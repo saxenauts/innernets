@@ -82,7 +82,7 @@ Frontend Integration (next steps)
 All endpoints require `Authorization: Bearer <supabase_access_token>`.
 
 - POST `/streams`
-  - Body: `{ "mission": string, "sources_hints"?: string, "cadence": string, "time_zone"?: string }`
+  - Body: `{ "mission": string, "sources"?: string, "cadence": string, "time_zone"?: string }` (sources stored as `sources_hints`)
   - Creates a stream and its schedule; returns the stream row.
 
 - GET `/streams`
@@ -92,7 +92,7 @@ All endpoints require `Authorization: Bearer <supabase_access_token>`.
   - Returns a single stream.
 
 - PUT `/streams/{id}`
-  - Body: `{ mission?, sources_hints?, cadence?, time_zone?, active? }` — updates the stream and syncs the schedule.
+  - Body: `{ mission?, sources?, cadence?, time_zone?, active? }` — updates the stream and syncs the schedule.
 
 - POST `/streams/{id}/run`
   - Enqueues an ad-hoc run; returns `{ job_id, status: 'queued' }`.
@@ -102,3 +102,8 @@ All endpoints require `Authorization: Bearer <supabase_access_token>`.
 
 Notes
 - In dev, the in-app scheduler thread will claim and execute jobs. In prod, run a separate worker and disable in-app scheduler for the API process.
+
+### CORS
+- Dev origin allowed by default: `http://localhost:5173`.
+- Override with `CORS_ALLOW_ORIGINS` (comma-separated), e.g.:
+  - `CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173`

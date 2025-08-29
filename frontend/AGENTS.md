@@ -1,7 +1,7 @@
 # Frontend (Web) — Minimal Guide
 
 ## What’s here
-- Pages: `Login`, `Onboarding`, `Streams`, `StreamView`.
+- Pages: `Login`, `SignUp`, `Onboarding`, `Streams`, `StreamView`.
 - Components: `NavBar`, `StreamCard`, `ItemCard`, UI: `Button`, `Input`, `Badge`, `Select`.
 - State: `AuthProvider` (localStorage-backed).
 - Styles: `src/styles/globals.css` (Tailwind v4 + CSS variables).
@@ -29,9 +29,9 @@
 
 ## Flows
 - Login (`/`): Supabase password grant (Vite env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → onboarding. Falls back to mock in dev if env missing.
-- Onboarding (`/onboarding`): Create Stream via `POST /streams`; navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
-- Streams (`/streams`): loads from `GET /streams`; falls back to mock + saved mission if API unavailable.
-- StreamView (`/streams/:id`): loads `GET /streams/:id/latest`. “Run Now” triggers `POST /streams/:id/run` and shows queued status.
+- Onboarding (`/onboarding`): Create Stream via `POST /streams` (fields: `mission`, `sources`, `cadence`); navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
+- Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; falls back to mock + saved mission if API unavailable.
+- StreamView (`/streams/:id`): shows a reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Edit stream (mission, sources, cadence) and Delete stream actions are available; “Run Now” triggers `POST /streams/:id/run`.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).

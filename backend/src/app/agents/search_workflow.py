@@ -263,8 +263,15 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
             additional_ctx = curations_repo.get_previous_context(stream_id) or {}
         except Exception:
             additional_ctx = {}
-    # If still None, synthesize minimal params
+    # If still None, synthesize minimal params. Avoid running for non-stream demo payloads.
     if params is None:
+        # If payload has only a schedule_id and no stream_id, treat as noop (skip).
+        if (not stream_id) and isinstance(params_raw, dict) and set(params_raw.keys()).issubset({"schedule_id"}):
+            return {
+                "agent": payload.get("agent", "search_only_v1"),
+                "skipped": True,
+                "reason": "no stream_id and no mission (demo or placeholder schedule)",
+            }
         params = SearchJobParams(mission=str(params_raw or "Web research mission"))
 
     # 1) Generate search queries (LLM)

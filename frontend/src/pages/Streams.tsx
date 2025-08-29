@@ -16,6 +16,7 @@ function fromOnboarding(): Stream | null {
 
 export default function Streams() {
   const [list, setList] = useState<Stream[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -26,6 +27,8 @@ export default function Streams() {
       } catch {
         const fallback: Stream[] = [fromOnboarding(), ...baseStreams].filter(Boolean) as Stream[];
         if (!cancelled) setList(fallback);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -36,11 +39,27 @@ export default function Streams() {
         <h2 className="text-3xl font-semibold tracking-tight">Your Streams</h2>
         <p className="text-muted-foreground">Edited, link‑first outputs. “New since last run” appears in the stream view.</p>
       </header>
-      <div className="card-surface divide-y divide-[hsl(var(--border))]">
-        {list.map((s) => (
-          <StreamCard key={s.id} stream={s} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid gap-3">
+          {[0,1,2].map((i) => (
+            <div key={i} className="card-surface p-5 animate-pulse">
+              <div className="h-5 w-1/3 bg-muted rounded mb-2"></div>
+              <div className="h-4 w-2/3 bg-muted rounded mb-1"></div>
+              <div className="h-4 w-1/2 bg-muted rounded"></div>
+            </div>
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="card-surface p-6">
+          <div className="text-muted-foreground">No streams yet. Create your first stream from the New Stream button.</div>
+        </div>
+      ) : (
+        <div className="card-surface divide-y divide-[hsl(var(--border))]">
+          {list.map((s) => (
+            <StreamCard key={s.id} stream={s} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

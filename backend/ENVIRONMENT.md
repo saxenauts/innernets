@@ -49,8 +49,8 @@ Scheduling
 - SCHEDULE_MAX_JOBS_PER_TICK: Backpressure control (e.g., `25`)
 - SCHEDULER_IN_APP: `1` to run background scheduler thread inside FastAPI (used by `app.run_backend`)
 
-Demo (optional)
-- DEMO_LAG_AFTER_TICK, DEMO_LAG_BEFORE_THIRD, DEMO_LAG_BETWEEN_RUNS, DEMO_SECOND_TICK_DELAY_SEC: small timing lags to observe queue and processing in demo script
+Demo
+- The legacy demo script has been removed to prevent accidental scheduled runs. No demo-specific env vars are used.
 
 Telemetry (Optional)
 - SENTRY_DSN: error reporting

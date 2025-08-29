@@ -18,7 +18,10 @@ export default function NavBar() {
               <Button variant="ghost" onClick={() => { logout(); navigate('/'); }}>Logout</Button>
             </>
           ) : (
-            <NavLink to="/" className={({ isActive }) => (isActive ? 'text-foreground' : 'text-muted-foreground')}>Login</NavLink>
+            <div className="flex items-center gap-3">
+              <NavLink to="/" className={({ isActive }) => (isActive ? 'text-foreground' : 'text-muted-foreground')}>Login</NavLink>
+              <NavLink to="/signup" className={({ isActive }) => (isActive ? 'text-foreground' : 'text-muted-foreground')}>Sign up</NavLink>
+            </div>
           )}
         </div>
       </div>

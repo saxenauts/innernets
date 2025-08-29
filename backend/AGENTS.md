@@ -11,7 +11,7 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 
 ## Architecture (FastAPI + Scheduler + Streams)
 - API layer: FastAPI app (`backend/src/app/main.py`) with a minimal health endpoint.
-- Streams API: user-created Streams (`mission`, `sources_hints`, `cadence`) with CRUD and Run Now; latest curations endpoint.
+- Streams API: user-created Streams (`mission`, `sources` → stored as `sources_hints`, `cadence`) with CRUD (POST/GET/PUT/DELETE) and Run Now; latest curations and paginated runs endpoints.
 - Search Agent service: consumes streams and schedules, runs the Exa-first plan (LLM steps centralized in `llm/search_steps.py`).
 - Job Scheduler/Worker: polls due schedules and executes jobs; ensures idempotency and safe retries.
 - LLM Adapter: unifies Azure OpenAI and OpenAI native under one interface.
@@ -66,7 +66,7 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 ## Scheduler Runtime Modes
 - In-App (default for `app.run_backend`): a background thread runs the ticker and worker loop inside FastAPI. Toggle with `SCHEDULER_IN_APP=1`.
 - Split Processes: run API and worker separately (see `app.scheduler.worker_main`). Keep exactly one ticker process to avoid redundant enqueues.
-- Demo & Stress: `app.scheduler.demo` enqueues scheduled and ad‑hoc jobs, prints queue snapshots and per‑job outputs, and supports timing lags to observe behavior.
+- Demo note: The old `app.scheduler.demo` has been removed to avoid accidental demo schedules. Use real Streams and schedules for testing.
 
 ## LLM Adapter Strategy (summary)
 - Structured JSON first: single-entrypoint `structured(instruction, context, schema)` returning Pydantic-validated outputs.
@@ -135,6 +135,16 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Integer fields: prompts and provider system message emphasize whole numbers for integer-typed fields.
 - Repair attempt: on validation failure, the adapter performs one repair call with the validation error details to elicit corrected JSON.
 
+
+### Streams endpoints
+- POST `/streams` — body: `{ mission: string, sources?: string, cadence: 'daily'|'3xweek'|'weekly'|'discovery', time_zone?: string }`
+- GET `/streams` — lists active streams for the user.
+- GET `/streams/:id` — stream details.
+- PUT `/streams/:id` — body: `{ mission?, sources?, cadence?, time_zone? }` (sources maps to `sources_hints`).
+- DELETE `/streams/:id` — soft-delete (sets `active=false` and disables schedule).
+- POST `/streams/:id/run` — enqueue ad-hoc run.
+- GET `/streams/:id/latest` — latest run summary.
+- GET `/streams/:id/runs?limit=10&before=iso` — reverse-chronological paginated runs.
 
 ### Output shape for frontend
 - Curations (final): `{ title, hook, links: [{ url, title?, domain }], position }` exposed by `GET /streams/:id/latest`.

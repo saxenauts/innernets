@@ -37,12 +37,31 @@ def _calc_next_run(current: datetime, cadence: str, tz: str) -> datetime:
 
     TODO: add cronexpr support later without breaking signature.
     """
+    # Support simple labels from onboarding and ISO8601-like intervals.
+    c = (cadence or "").strip().lower()
+    # Friendly labels
+    if c == "daily":
+        return current + timedelta(days=1)
+    if c in {"3xweek", "3/week", "thrice/week", "thriceweek"}:
+        # Approximate 3 times per week: every ~56 hours
+        return current + timedelta(hours=56)
+    if c == "weekly":
+        return current + timedelta(days=7)
+    if c == "discovery":
+        # Discovery implies on-demand only; push far out
+        return current + timedelta(days=365)
     # Very minimal ISO8601-like interval support: PT<n>M or PT<n>H
-    if cadence.startswith("PT") and cadence.endswith("M"):
-        minutes = int(cadence[2:-1])
+    if c.startswith("pt") and c.endswith("m"):
+        try:
+            minutes = int(c[2:-1])
+        except Exception:
+            minutes = 60
         return current + timedelta(minutes=minutes)
-    if cadence.startswith("PT") and cadence.endswith("H"):
-        hours = int(cadence[2:-1])
+    if c.startswith("pt") and c.endswith("h"):
+        try:
+            hours = int(c[2:-1])
+        except Exception:
+            hours = 1
         return current + timedelta(hours=hours)
     # Fallback: hourly
     return current + timedelta(hours=1)
@@ -67,9 +86,20 @@ def tick(max_jobs: int = 25) -> List[Dict[str, Any]]:
             pass
     resp = q.order("next_run_at").limit(max_jobs).execute()
     raw_schedules: List[Dict[str, Any]] = resp.data or []
+    # Filter out demo schedules and proactively disable them
+    filtered: List[Dict[str, Any]] = []
+    for sch in raw_schedules:
+        name = (sch.get("name") or "").strip().lower()
+        if name == "e2e-scheduler-demo":
+            try:
+                get_service_client().table("schedules").update({"active": False}).eq("id", sch["id"]).execute()
+            except Exception:
+                pass
+            continue  # never enqueue demo
+        filtered.append(sch)
     # Defensive: also filter client-side to only include due schedules
     schedules: List[Dict[str, Any]] = []
-    for sch in raw_schedules:
+    for sch in filtered:
         try:
             nra = _parse_ts(sch.get("next_run_at"))
             if nra <= now:

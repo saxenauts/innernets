@@ -37,7 +37,7 @@ Phase 4 — Scheduler & Jobs
 
 Phase 5 — Search Agent (Exa-first, SDK contract)
 - [x] Define internal contracts and implement orchestration in `agents.search_workflow`
-- [ ] Persist queries/results and per-run metrics (currently metrics only on runs)
+- [x] Persist curations per run (clusters+links) and mark finished_at on completion
 - [x] Exa client wrapper + caps + cost accounting in workers (no public endpoints)
 - [ ] Guardrails: caps on queries/reads, novelty share
 - [ ] Tests: cost caps, latency budget, correctness invariants
@@ -73,3 +73,15 @@ Notes
 Status Summary
 - Done so far: backend DB scaffold, Supabase auth (profiles API), LLM adapter with structured outputs, scheduler ticker/worker with demo and in-app runtime.
 - Done so far: search step functions with prompts
+
+
+Streams & Frontend Integration (new)
+- [x] Add SQL: `streams`, `urls`, `curation_runs`, `curation_clusters`, `curation_cluster_links` (RLS)
+- [x] Streams API: POST/GET/PUT `/streams`, POST `/streams/:id/run`, GET `/streams/:id/latest`
+- [x] Orchestrator: persist curations; derive `stream_id` from schedule meta for scheduled runs
+- [x] Frontend login via Supabase password grant (anon key + project URL)
+- [x] Frontend pages call Streams API (create/list/get/latest, Run Now)
+- [ ] Add GET `/streams/:id/runs` (history) and optional aggregate endpoint
+- [ ] Frontend: add past runs view + auto-poll after Run Now
+- [ ] Token refresh (supabase-js) instead of raw fetch grant; handle expiry gracefully
+- [ ] Improve CORS configuration for different environments

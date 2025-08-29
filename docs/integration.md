@@ -150,7 +150,7 @@ Repositories (Supabase clients)
 
 Routes (FastAPI)
 - `POST /streams` — create stream
-  - Body: `{ mission, sources_hints?, cadence }`
+  - Body: `{ mission, sources?, cadence }` (sources stored as `sources_hints`)
   - Behavior: creates the stream and an associated `schedules` row using the given cadence and time_zone (default UTC).
   - Returns: stream row (id, created_at, etc.)
 

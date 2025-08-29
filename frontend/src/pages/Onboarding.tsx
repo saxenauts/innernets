@@ -9,15 +9,16 @@ const SOURCES_KEY = 'in_onboarding_sources';
 const CADENCE_KEY = 'in_onboarding_cadence';
 
 export default function Onboarding() {
-  const [mission, setMission] = useState<string>(localStorage.getItem(MISSION_KEY) || '');
-  const [sources, setSources] = useState<string>(localStorage.getItem(SOURCES_KEY) || '');
-  const [cadence, setCadence] = useState<string>(localStorage.getItem(CADENCE_KEY) || 'weekly');
+  // Start from defaults; do not prefill from previous local values
+  const [mission, setMission] = useState<string>('');
+  const [sources, setSources] = useState<string>('');
+  const [cadence, setCadence] = useState<string>('weekly');
   const navigate = useNavigate();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      const body = { mission: mission.trim(), sources_hints: sources.trim() || undefined, cadence };
+      const body = { mission: mission.trim(), sources: sources.trim() || undefined, cadence };
       const created = await api.post<{ id: string }>('/streams', body);
       navigate(`/streams/${encodeURIComponent(created.id)}`);
     } catch (err) {

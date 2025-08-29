@@ -35,6 +35,7 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: any) => request<T>('POST', path, body),
   put: <T>(path: string, body?: any) => request<T>('PUT', path, body),
+  del: <T>(path: string) => request<T>('DELETE', path),
 };
 
 export function setDevToken(token: string) {
@@ -44,4 +45,3 @@ export function setDevToken(token: string) {
 export function clearDevToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
-

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import Login from './pages/Login';
+import SignUp from './pages/SignUp';
 import Onboarding from './pages/Onboarding';
 import Streams from './pages/Streams';
 import StreamView from './pages/StreamView';
@@ -18,6 +19,7 @@ export default function App() {
       <NavBar />
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
         <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
         <Route path="/streams" element={<Protected><Streams /></Protected>} />
         <Route path="/streams/:id" element={<Protected><StreamView /></Protected>} />
@@ -26,4 +28,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

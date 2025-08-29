@@ -100,3 +100,77 @@ def get_previous_context(stream_id: str) -> Dict[str, Any]:
             }
         )
     return ctx
+
+
+def get_runs(stream_id: str, limit: int = 10, before_started_at: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Return multiple runs in reverse chronological order with clusters+links.
+
+    - Supports simple pagination via `before_started_at` (ISO8601 string).
+    - Returns a list of run dicts, each with `clusters: [...]` where each cluster has `links` joined to urls.
+    """
+    # Base query for runs
+    q = _tbl("curation_runs").select(
+        "id, stream_id, job_id, status, started_at, finished_at, metrics"
+    ).eq("stream_id", stream_id)
+    # Apply cursor (strictly older than cursor timestamp)
+    if before_started_at:
+        try:
+            # Prefer lt if available; fall back to filter
+            q = q.lt("started_at", before_started_at)  # type: ignore[attr-defined]
+        except Exception:
+            try:
+                q = q.filter("started_at", "lt", before_started_at)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+    runs = q.order("started_at", desc=True).limit(limit).execute().data or []
+    if not runs:
+        return []
+
+    run_ids = [r["id"] for r in runs]
+    # Fetch clusters for all runs
+    clusters = (
+        _tbl("curation_clusters")
+        .select("id, run_id, title, hook, position")
+        .in_("run_id", run_ids)
+        .order("position", desc=False)
+        .execute()
+        .data
+        or []
+    )
+    clusters_by_run: Dict[str, List[Dict[str, Any]]] = {rid: [] for rid in run_ids}
+    cluster_ids: List[str] = []
+    for c in clusters:
+        clusters_by_run.setdefault(c["run_id"], []).append(dict(c))
+        cluster_ids.append(c["id"])
+
+    # Join links + urls for all clusters
+    links_by_cluster: Dict[str, List[Dict[str, Any]]] = {}
+    if cluster_ids:
+        links = (
+            get_service_client()
+            .table("curation_cluster_links")
+            .select("id, cluster_id, position, snapshot_title, urls:urls(id,url,domain,last_title)")
+            .in_("cluster_id", cluster_ids)
+            .order("position", desc=False)
+            .execute()
+            .data
+            or []
+        )
+        for l in links:
+            u = l.get("urls") or {}
+            links_by_cluster.setdefault(l["cluster_id"], []).append(
+                {
+                    "url": u.get("url"),
+                    "domain": u.get("domain"),
+                    "title": l.get("snapshot_title") or u.get("last_title"),
+                    "position": l.get("position", 0),
+                }
+            )
+
+    # Attach links to clusters and clusters to runs
+    for c in clusters:
+        cid = c["id"]
+        c["links"] = links_by_cluster.get(cid, [])
+    for r in runs:
+        r["clusters"] = clusters_by_run.get(r["id"], [])
+    return runs

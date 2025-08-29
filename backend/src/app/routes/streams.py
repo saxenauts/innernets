@@ -15,6 +15,8 @@ router = APIRouter(prefix="/streams", tags=["streams"])
 
 class StreamCreate(BaseModel):
     mission: str
+    # Accept 'sources' (preferred) or legacy 'sources_hints'
+    sources: Optional[str] = None
     sources_hints: Optional[str] = None
     cadence: str
     time_zone: Optional[str] = None
@@ -22,7 +24,9 @@ class StreamCreate(BaseModel):
 
 class StreamUpdate(BaseModel):
     mission: Optional[str] = None
-    sources_hints: Optional[str] = None
+    # Accept new 'sources' name; keep legacy 'sources_hints' for back-compat
+    sources: Optional[str] = Field(default=None, description="Preferred: sources for this stream")
+    sources_hints: Optional[str] = Field(default=None, description="Legacy: kept for back-compat")
     cadence: Optional[str] = None
     time_zone: Optional[str] = None
     active: Optional[bool] = None
@@ -63,7 +67,9 @@ def get_stream(stream_id: str, user_id: str = Depends(get_current_user_id), toke
 
 @router.put("/{stream_id}")
 def update_stream(stream_id: str, payload: StreamUpdate, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)):
-    row = streams_repo.update_stream(stream_id, user_id, token, payload.model_dump(exclude_none=True))
+    # Map 'sources' to repo's expected field
+    fields = payload.model_dump(exclude_none=True)
+    row = streams_repo.update_stream(stream_id, user_id, token, fields)
     return row
 
 
@@ -100,3 +106,53 @@ def latest_curation(stream_id: str, user_id: str = Depends(get_current_user_id),
         "finished_at": run.get("finished_at"),
         "curations": curations,
     }
+
+
+@router.delete("/{stream_id}", status_code=204)
+def delete_stream(stream_id: str, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)):
+    # Soft-delete: mark inactive and disable schedule
+    # Ensure the stream exists and user has access
+    row = streams_repo.get_stream(stream_id, user_id, token)
+    if not row:
+        raise HTTPException(status_code=404, detail="Stream not found")
+    streams_repo.delete_stream(stream_id, user_id, token)
+    return None
+
+
+@router.get("/{stream_id}/runs")
+def list_runs(
+    stream_id: str,
+    limit: int = 10,
+    before: Optional[str] = None,
+    user_id: str = Depends(get_current_user_id),
+    token: str = Depends(get_current_token),
+):
+    # Auth check: ensure user can access the stream
+    row = streams_repo.get_stream(stream_id, user_id, token)
+    if not row:
+        raise HTTPException(status_code=404, detail="Stream not found")
+    runs = curations_repo.get_runs(stream_id, limit=limit, before_started_at=before) or []
+    out_runs: List[Dict[str, Any]] = []
+    for r in runs:
+        curations: List[Dict[str, Any]] = []
+        for idx, c in enumerate(r.get("clusters", []) or []):
+            links = c.get("links", [])
+            curations.append(
+                {
+                    "title": c.get("title"),
+                    "hook": c.get("hook"),
+                    "links": links,
+                    "position": c.get("position", idx),
+                }
+            )
+        out_runs.append(
+            {
+                "id": r.get("id"),
+                "run_at": r.get("started_at"),
+                "started_at": r.get("started_at"),
+                "finished_at": r.get("finished_at"),
+                "curations": curations,
+            }
+        )
+    next_cursor = out_runs[-1]["started_at"] if out_runs else None
+    return {"runs": out_runs, "next_cursor": next_cursor}
