@@ -12,12 +12,34 @@ export default function StreamView() {
   const { id } = useParams();
   const [curations, setCurations] = useState<ApiCuration[] | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const stream = useMemo(() => {
+  const [meta, setMeta] = useState<{ name: string; description: string } | null>(null);
+  const [metaLoaded, setMetaLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMetaLoaded(false);
+    if (!id) return;
     if (id === 'user-mission') {
       const desc = localStorage.getItem('in_onboarding_mission') || 'Your saved mission';
-      return { id, name: 'Your Mission', description: desc, items: [] };
+      if (!cancelled) {
+        setMeta({ name: 'Your Mission', description: desc });
+        setMetaLoaded(true);
+      }
+      return;
     }
-    return streams.find(s => s.id === id) || null;
+    (async () => {
+      try {
+        const s = await api.get<any>(`/streams/${encodeURIComponent(id)}`);
+        if (!cancelled) {
+          setMeta({ name: s.mission?.slice(0, 80) || 'Stream', description: s.mission || '' });
+        }
+      } catch {
+        if (!cancelled) setMeta(null);
+      } finally {
+        if (!cancelled) setMetaLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [id]);
 
   useEffect(() => {
@@ -45,7 +67,7 @@ export default function StreamView() {
     }
   };
 
-  if (!stream) {
+  if (id !== 'user-mission' && metaLoaded && !meta) {
     return (
       <div className="container-page py-10">
         <div className="mx-auto max-w-xl card-surface p-6">
@@ -63,8 +85,8 @@ export default function StreamView() {
     <div className="container-page py-10">
       <div className="grid gap-4">
         <div className="card-surface p-6">
-          <h2 className="text-3xl font-semibold tracking-tight mb-1">{stream.name}</h2>
-          <p className="text-muted-foreground m-0">{stream.description}</p>
+          <h2 className="text-3xl font-semibold tracking-tight mb-1">{meta?.name || 'Loading…'}</h2>
+          <p className="text-muted-foreground m-0">{meta?.description || ''}</p>
           {id !== 'user-mission' && (
             <div className="mt-4 flex items-center gap-3">
               <Button onClick={runNow}>Run Now</Button>

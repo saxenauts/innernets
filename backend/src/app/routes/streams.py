@@ -40,7 +40,12 @@ def list_streams(user_id: str = Depends(get_current_user_id), token: str = Depen
     # Optionally decorate with latest run timestamp (simple N+1)
     out: List[Dict[str, Any]] = []
     for r in rows:
-        latest = curations_repo.get_latest_run(r["id"])  # service role read; only returns user's runs via RLS
+        latest = None
+        try:
+            latest = curations_repo.get_latest_run(r["id"])  # service role read
+        except Exception:
+            # Gracefully degrade if service-role client not configured in dev
+            latest = None
         if latest:
             r = dict(r)
             r["latest_run_at"] = latest.get("started_at")
@@ -71,7 +76,10 @@ def run_stream_now(stream_id: str, user_id: str = Depends(get_current_user_id), 
 
 @router.get("/{stream_id}/latest")
 def latest_curation(stream_id: str, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)):
-    run = curations_repo.get_latest_run(stream_id)
+    try:
+        run = curations_repo.get_latest_run(stream_id)
+    except Exception:
+        run = None
     if not run:
         return {"run_id": None, "run_at": None, "curations": []}
     curations: List[Dict[str, Any]] = []
@@ -92,4 +100,3 @@ def latest_curation(stream_id: str, user_id: str = Depends(get_current_user_id),
         "finished_at": run.get("finished_at"),
         "curations": curations,
     }
-

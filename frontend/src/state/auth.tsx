@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 
 type AuthContextType = {
   authed: boolean;
@@ -13,14 +13,15 @@ const KEY = 'in_authed_user';
 const TOKEN_KEY = 'in_test_bearer';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [email, setEmail] = useState<string | undefined>();
-
-  useEffect(() => {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      try { setEmail(JSON.parse(raw).email as string); } catch {}
+  const [email, setEmail] = useState<string | undefined>(() => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return undefined;
+      return (JSON.parse(raw).email as string) || undefined;
+    } catch {
+      return undefined;
     }
-  }, []);
+  });
 
   const value = useMemo<AuthContextType>(() => ({
     authed: !!email,

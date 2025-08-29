@@ -20,6 +20,8 @@ class Settings:
         # Supabase / DB
         self.SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
         self.SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        # Public anon key (client-facing). Must be spelled exactly SUPABASE_ANON_KEY.
+        self.SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
         self.POSTGRES_CONNECTION_STRING: Optional[str] = os.getenv("POSTGRES_CONNECTION_STRING")
 
         # Providers

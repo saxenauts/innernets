@@ -232,6 +232,21 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     # Optional: stream-backed run context
     payload_type = (payload.get("type") or "").strip()
     stream_id: Optional[str] = payload.get("stream_id") if isinstance(payload.get("stream_id"), str) else None
+    # Derive stream_id from schedule meta if missing
+    if not stream_id:
+        try:
+            sched_id = job.get("schedule_id")
+            if isinstance(sched_id, str) and sched_id:
+                sb = get_service_client()
+                sch = sb.table("schedules").select("id, meta").eq("id", sched_id).limit(1).execute().data
+                if sch and isinstance(sch, list):
+                    meta = (sch[0] or {}).get("meta") or {}
+                    if isinstance(meta, dict):
+                        sid = meta.get("stream_id")
+                        if isinstance(sid, str) and sid:
+                            stream_id = sid
+        except Exception:
+            pass
     additional_ctx: Dict[str, Any] = {}
     if stream_id:
         # Load mission from streams table if params missing

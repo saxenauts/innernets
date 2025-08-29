@@ -16,7 +16,8 @@ def create_curation_run(stream_id: str, job_id: Optional[str] = None, status: st
 
 
 def complete_curation_run(run_id: str, status: str = "succeeded", metrics: Optional[Dict[str, Any]] = None) -> None:
-    patch: Dict[str, Any] = {"status": status}
+    from datetime import datetime, timezone
+    patch: Dict[str, Any] = {"status": status, "finished_at": datetime.now(timezone.utc).isoformat()}
     if metrics is not None:
         patch["metrics"] = metrics
     _tbl("curation_runs").update(patch).eq("id", run_id).execute()

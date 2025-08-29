@@ -27,7 +27,12 @@ export default function Login() {
       }
       const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          // Some Supabase deployments require Authorization header mirroring apikey
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
         body: JSON.stringify({ email: em, password }),
       });
       if (!res.ok) throw new Error(`Supabase login failed: ${res.status}`);
@@ -51,11 +56,11 @@ export default function Login() {
         <form className="grid gap-4" onSubmit={onSubmit}>
           <label>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Email</div>
-            <Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <label>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Password</div>
-            <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </label>
           <div className="flex justify-end gap-3"><Button type="submit">Sign in</Button></div>
         </form>
