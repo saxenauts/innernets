@@ -104,16 +104,23 @@ def update_stream(stream_id: str, user_id: str, token: str, fields: Dict[str, An
     return cur
 
 
-def delete_stream(stream_id: str, user_id: str, token: str) -> None:
-    """Soft delete: mark stream inactive and disable its schedule.
+def delete_stream(stream_id: str, user_id: str, token: str, hard: bool = False) -> None:
+    """Delete a stream.
 
-    Keeps data for audit/history while removing from default views.
+    - Soft delete (default): mark stream inactive and disable its schedule.
+    - Hard delete: delete schedule(s) for this stream and delete the stream row
+      (cascades to curation_runs → clusters → links via FK). Use with care.
     """
-    # Disable schedule if present
+    # Find schedule tied to this stream
     sched = _find_schedule_for_stream(user_id, token, stream_id)
+    if hard:
+        if sched:
+            _schedules_table(token).delete().eq("id", sched["id"]).execute()
+        _streams_table(token).delete().eq("id", stream_id).execute()
+        return
+    # Soft delete path
     if sched:
         _schedules_table(token).update({"active": False}).eq("id", sched["id"]).execute()
-    # Mark stream inactive
     _streams_table(token).update({"active": False}).eq("id", stream_id).execute()
 
 

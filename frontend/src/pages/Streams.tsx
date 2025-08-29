@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import StreamCard from '../components/StreamCard';
 import { streams as baseStreams, type Stream } from '../mocks/mock-data';
 import { api } from '../lib/api';
@@ -17,6 +18,9 @@ function fromOnboarding(): Stream | null {
 export default function Streams() {
   const [list, setList] = useState<Stream[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [toast, setToast] = useState<string | null>(null);
+  const location = useLocation() as any;
+  const navigate = useNavigate();
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -33,8 +37,25 @@ export default function Streams() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // One-off toast from navigation state
+  useEffect(() => {
+    const msg = location?.state?.toast as string | undefined;
+    if (msg) {
+      setToast(msg);
+      // Clear state so refresh doesn't re-show
+      navigate(location.pathname, { replace: true });
+      const t = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [location?.state, location?.pathname]);
   return (
     <div className="container-page py-10">
+      {toast && (
+        <div role="alert" className="mb-4 rounded-lg border bg-green-50 px-4 py-3 text-green-900 shadow-sm">
+          {toast}
+        </div>
+      )}
       <header className="mb-6">
         <h2 className="text-3xl font-semibold tracking-tight">Your Streams</h2>
         <p className="text-muted-foreground">Edited, link‑first outputs. “New since last run” appears in the stream view.</p>

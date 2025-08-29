@@ -109,13 +109,13 @@ def latest_curation(stream_id: str, user_id: str = Depends(get_current_user_id),
 
 
 @router.delete("/{stream_id}", status_code=204)
-def delete_stream(stream_id: str, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)):
+def delete_stream(stream_id: str, hard: bool = False, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)):
     # Soft-delete: mark inactive and disable schedule
     # Ensure the stream exists and user has access
     row = streams_repo.get_stream(stream_id, user_id, token)
     if not row:
         raise HTTPException(status_code=404, detail="Stream not found")
-    streams_repo.delete_stream(stream_id, user_id, token)
+    streams_repo.delete_stream(stream_id, user_id, token, hard=bool(hard))
     return None
 
 

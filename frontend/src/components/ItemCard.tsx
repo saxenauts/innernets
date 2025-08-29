@@ -9,9 +9,25 @@ export default function ItemCard({ item, isNew = false }: { item: Item; isNew?: 
   const first = item.links[0];
   const source = first ? domainFrom(first.url) : '';
   return (
-    <article className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+    <article
+      className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+      data-has-links={item.links.length > 0 ? 'true' : 'false'}
+      data-first-url={first?.url || ''}
+      role="group"
+    >
       {isNew && <Badge variant="new" className="mb-2">New</Badge>}
-      <a className="block text-lg font-semibold tracking-tight text-foreground underline-offset-4 hover:underline hover:text-primary" href={first?.url} target="_blank" rel="noreferrer">{item.title}</a>
+      {first?.url ? (
+        <a
+          className="block text-lg font-semibold tracking-tight text-foreground underline-offset-4 hover:underline hover:text-primary"
+          href={first.url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {item.title}
+        </a>
+      ) : (
+        <div className="block text-lg font-semibold tracking-tight text-foreground">{item.title}</div>
+      )}
       <p className="mt-1 text-foreground/80">{item.summary}</p>
       <div className="mt-1 text-sm text-muted-foreground">
         {source ? `Source: ${source}` : ''}{item.links.length > 1 ? ` • Links: ${item.links.length}` : ''}
@@ -23,7 +39,13 @@ export default function ItemCard({ item, isNew = false }: { item: Item; isNew?: 
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {item.links.map((l) => (
-          <a key={l.url} href={l.url} target="_blank" rel="noreferrer" className="rounded-full border bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-primary">
+          <a
+            key={l.url}
+            href={l.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border bg-muted px-2.5 py-1 text-xs text-muted-foreground hover:text-primary select-none"
+          >
             {l.label}
           </a>
         ))}

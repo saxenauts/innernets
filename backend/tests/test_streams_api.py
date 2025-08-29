@@ -58,8 +58,8 @@ def test_delete_stream_soft(monkeypatch):
     def fake_get_stream(stream_id: str, user_id: str, token: str):
         return {"id": stream_id, "user_id": user_id, "mission": "M", "active": True}
 
-    def fake_delete_stream(stream_id: str, user_id: str, token: str):
-        calls["deleted"] = stream_id
+    def fake_delete_stream(stream_id: str, user_id: str, token: str, hard: bool = False):
+        calls["deleted"] = f"{stream_id}|hard={hard}"
 
     from app.routes import streams as streams_module
     monkeypatch.setattr(streams_module.streams_repo, "get_stream", fake_get_stream)
@@ -71,4 +71,29 @@ def test_delete_stream_soft(monkeypatch):
 
     r = client.delete("/streams/s-2", headers=_auth_headers())
     assert r.status_code == 204
-    assert calls["deleted"] == "s-2"
+    assert calls["deleted"] == "s-2|hard=False"
+
+
+def test_delete_stream_hard(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "SUPABASE_JWT_SECRET", "testsecret", raising=False)
+
+    calls = {"deleted": None}
+
+    def fake_get_stream(stream_id: str, user_id: str, token: str):
+        return {"id": stream_id, "user_id": user_id, "mission": "M", "active": True}
+
+    def fake_delete_stream(stream_id: str, user_id: str, token: str, hard: bool = False):
+        calls["deleted"] = f"{stream_id}|hard={hard}"
+
+    from app.routes import streams as streams_module
+    monkeypatch.setattr(streams_module.streams_repo, "get_stream", fake_get_stream)
+    monkeypatch.setattr(streams_module.streams_repo, "delete_stream", fake_delete_stream)
+
+    from app.main import app
+    app.dependency_overrides.clear()
+    client = TestClient(app)
+
+    r = client.delete("/streams/s-3?hard=true", headers=_auth_headers())
+    assert r.status_code == 204
+    assert calls["deleted"] == "s-3|hard=True"

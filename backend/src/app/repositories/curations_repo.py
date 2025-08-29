@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 from ..supabase_client import get_service_client, get_user_supabase_client
 
@@ -54,11 +55,11 @@ def get_latest_run(stream_id: str) -> Optional[Dict[str, Any]]:
     clusters = _tbl("curation_clusters").select("id, run_id, title, hook, position").eq("run_id", run["id"]).order("position", desc=False).execute().data or []
     if clusters:
         cluster_ids = [c["id"] for c in clusters]
-        # Join links with URLs
+        # Join links with URLs via explicit FK (url_id → urls.id)
         links = (
             get_service_client()
             .table("curation_cluster_links")
-            .select("id, cluster_id, position, snapshot_title, urls:urls(id,url,domain,last_title)")
+            .select("*, urls:urls!curation_cluster_links_url_id_fkey(id,url,domain,last_title)")
             .in_("cluster_id", cluster_ids)
             .order("position", desc=False)
             .execute()
@@ -137,19 +138,15 @@ def get_runs(stream_id: str, limit: int = 10, before_started_at: Optional[str] =
         .data
         or []
     )
-    clusters_by_run: Dict[str, List[Dict[str, Any]]] = {rid: [] for rid in run_ids}
-    cluster_ids: List[str] = []
-    for c in clusters:
-        clusters_by_run.setdefault(c["run_id"], []).append(dict(c))
-        cluster_ids.append(c["id"])
+    cluster_ids: List[str] = [c["id"] for c in clusters]
 
-    # Join links + urls for all clusters
+    # Join links + urls for all clusters via explicit FK (url_id → urls.id)
     links_by_cluster: Dict[str, List[Dict[str, Any]]] = {}
     if cluster_ids:
         links = (
             get_service_client()
             .table("curation_cluster_links")
-            .select("id, cluster_id, position, snapshot_title, urls:urls(id,url,domain,last_title)")
+            .select("*, urls:urls!curation_cluster_links_url_id_fkey(id,url,domain,last_title)")
             .in_("cluster_id", cluster_ids)
             .order("position", desc=False)
             .execute()
@@ -167,10 +164,13 @@ def get_runs(stream_id: str, limit: int = 10, before_started_at: Optional[str] =
                 }
             )
 
-    # Attach links to clusters and clusters to runs
+    # Attach links to clusters, then group by run
     for c in clusters:
         cid = c["id"]
         c["links"] = links_by_cluster.get(cid, [])
+    clusters_by_run: Dict[str, List[Dict[str, Any]]] = {rid: [] for rid in run_ids}
+    for c in clusters:
+        clusters_by_run.setdefault(c["run_id"], []).append(c)
     for r in runs:
         r["clusters"] = clusters_by_run.get(r["id"], [])
     return runs

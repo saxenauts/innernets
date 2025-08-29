@@ -70,6 +70,7 @@
   *, ::before, ::after { border-color: hsl(var(--border)); }
   html, body, #root { height: 100%; }
   body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+  a[href] { cursor: pointer; }
 }
 
 /* Utilities */

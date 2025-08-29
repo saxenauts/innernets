@@ -17,6 +17,7 @@ LLMs never see raw URLs, only short IDs; the orchestrator maps IDs to URLs.
 from typing import Any, Dict, List, Optional, Set, Tuple
 import logging
 from urllib.parse import urlparse
+import re
 
 from pydantic import BaseModel, Field
 
@@ -70,6 +71,30 @@ def _dedupe_by_url(results: List[ResultWithContent]) -> List[ResultWithContent]:
 
 def _id(n: int) -> str:
     return str(n).zfill(2)
+
+
+def _normalize_id(raw: Optional[str]) -> Optional[str]:
+    """Normalize a potentially messy link ID into our canonical zero-padded form.
+
+    Accepts forms like "1", "01", "#01", "id-1", " 2 ", etc., and returns
+    a two-digit string ("01".."99"). Returns None if it cannot be normalized.
+    """
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    # Extract up to 2 consecutive digits from anywhere in the string
+    m = re.findall(r"\d+", s)
+    if not m:
+        return None
+    try:
+        n = int(m[0])
+    except Exception:
+        return None
+    if n <= 0 or n > 99:
+        return None
+    return _id(n)
 
 
 def _exa_search(
@@ -432,12 +457,22 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
                 except Exception:
                     continue
                 link_refs: List[Dict[str, Any]] = []
+                seen_url_ids: Set[str] = set()
                 for j, lid in enumerate(cur.link_ids or []):
-                    url = id_to_url.get(lid)
+                    cid = _normalize_id(lid)
+                    if not cid:
+                        continue
+                    url = id_to_url.get(cid)
                     if not url:
                         continue
                     meta = id_to_meta.get(lid, {})
+                    # Note: lookup meta via canonical id if available
+                    if not meta and cid in id_to_meta:
+                        meta = id_to_meta.get(cid, {})
                     url_row = urls_repo.ensure_url(url, title=meta.get("title"), domain=meta.get("domain"))
+                    if url_row["id"] in seen_url_ids:
+                        continue
+                    seen_url_ids.add(url_row["id"])
                     link_refs.append({"url_id": url_row["id"], "snapshot_title": meta.get("title"), "position": j})
                 if link_refs:
                     curations_repo.insert_cluster_links(row["id"], link_refs)

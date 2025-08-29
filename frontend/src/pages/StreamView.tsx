@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { streams } from '../mocks/mock-data';
 import ItemCard from '../components/ItemCard';
 import { api } from '../lib/api';
@@ -13,6 +13,7 @@ type RunsRes = { runs: FeedRun[]; next_cursor?: string | null };
 
 export default function StreamView() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [runs, setRuns] = useState<FeedRun[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(false);
@@ -105,8 +106,13 @@ export default function StreamView() {
     if (!id) return;
     const yes = window.confirm('Delete this stream? You can no longer see it in your list.');
     if (!yes) return;
-    await api.del(`/streams/${encodeURIComponent(id)}`);
-    window.location.href = '/streams';
+    try {
+      await api.del(`/streams/${encodeURIComponent(id)}`);
+      setEditing(false);
+      navigate('/streams', { state: { toast: 'Stream deleted' } });
+    } catch (e: any) {
+      setStatus(`error: ${e?.message || 'delete failed'}`);
+    }
   };
 
   const loadMore = async () => {
@@ -123,6 +129,35 @@ export default function StreamView() {
       setLoadingMore(false);
     }
   };
+
+  // Normalize links coming from API to robustly handle minor schema/format drift.
+  // Accepts url/href/link keys; adds https:// if missing; ignores malformed values.
+  function normalizeLinks(rawLinks: any[] | undefined | null): { label: string; url: string }[] {
+    const out: { label: string; url: string }[] = [];
+    const seen = new Set<string>();
+    const arr = Array.isArray(rawLinks) ? rawLinks : [];
+    for (const r of arr) {
+      const cand = (r && (r.url || r.href || r.link)) as unknown;
+      if (typeof cand !== 'string') continue;
+      let u = cand.trim();
+      if (!u) continue;
+      // Add scheme if missing
+      if (/^https?:\/\//i.test(u)) {
+        // ok
+      } else if (/^\/\//.test(u)) {
+        u = 'https:' + u;
+      } else if (/^(www\.)?[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(u)) {
+        u = 'https://' + u.replace(/^\/*/, '');
+      } else {
+        continue; // ignore non-http URLs
+      }
+      if (seen.has(u)) continue;
+      seen.add(u);
+      const label = (r && (r.domain || r.title)) || 'Link';
+      out.push({ label: String(label), url: u });
+    }
+    return out;
+  }
 
   // Infinite scroll: auto-load when sentinel enters viewport
   useEffect(() => {
@@ -227,11 +262,12 @@ export default function StreamView() {
                   <div className="text-xs text-muted-foreground">{when}</div>
                   <div className="grid gap-3">
                     {r.curations.map((c, idx) => {
-                      const item = {
-                        title: c.title,
-                        summary: c.hook,
-                        links: (c.links || []).map((l) => ({ label: l.domain || l.title || 'Link', url: l.url })),
-                      };
+                      const links = normalizeLinks(c.links);
+                      if (import.meta.env.DEV && (window as any).__IN_DEBUG_LINKS) {
+                        // eslint-disable-next-line no-console
+                        console.debug('[StreamView] curation', { title: c.title, raw: c.links, normalized: links });
+                      }
+                      const item = { title: c.title, summary: c.hook, links };
                       return <ItemCard key={r.id + ':' + idx} item={item as any} isNew={false} />;
                     })}
                   </div>

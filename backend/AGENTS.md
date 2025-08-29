@@ -143,12 +143,13 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - PUT `/streams/:id` — body: `{ mission?, sources?, cadence?, time_zone? }` (sources maps to `sources_hints`).
 - DELETE `/streams/:id` — soft-delete (sets `active=false` and disables schedule).
 - POST `/streams/:id/run` — enqueue ad-hoc run.
-- GET `/streams/:id/latest` — latest run summary.
-- GET `/streams/:id/runs?limit=10&before=iso` — reverse-chronological paginated runs.
+- GET `/streams/:id/latest` — latest run summary (includes `clusters[].links` joined via `curation_cluster_links.url_id → urls.id`).
+- GET `/streams/:id/runs?limit=10&before=iso` — reverse-chronological paginated runs. Each run contains `clusters[]` with `links` joined via the same FK.
 
 ### Output shape for frontend
-- Curations (final): `{ title, hook, links: [{ url, title?, domain }], position }` exposed by `GET /streams/:id/latest`.
-- The worker maps ephemeral `link_ids` → `url_id` via the URL registry and exposes resolved links.
+- Curations (final): `{ title, hook, links: [{ url, title?, domain, position }], position }`.
+- `links` are resolved database joins (no metrics fallback): `curation_cluster_links.url_id` → `urls(id)`.
+- New runs normalize LLM `link_ids` to zero‑padded IDs when persisting, ensuring consistent URL mapping.
 
 ### Frontend integration checklist
 - Auth: use Supabase access token in `Authorization: Bearer <token>` for all user‑scoped endpoints.

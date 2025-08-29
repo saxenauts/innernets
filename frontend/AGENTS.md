@@ -22,6 +22,12 @@
 - Surfaces: use `card-surface` or `rounded-xl border bg-card ...` with small shadows.
 - Interactive: `Button`, `Input`, `Select` use the same token-bound classes for a consistent look.
 
+### Links
+- Prefer native anchors for external URLs. Use `href`, `target="_blank"`, and `rel="noopener noreferrer"`.
+- Do not use `window.open` in click handlers for normal links; it can be blocked by popup settings and interferes with middle/cmd-click semantics.
+- Avoid parent container `onClick` that hijacks link clicks. Let anchors handle navigation.
+- StreamView normalizes links (accepts `url|href|link` and adds `https://` for `www.`/schemeless). For debugging in dev, set `window.__IN_DEBUG_LINKS = true` and reload to log raw vs normalized links in the console.
+
 ### Overlays
 - For dropdowns/menus, wrap the trigger in a `relative isolate` container.
 - Render the menu as an absolute, high `z-index` element with `bg-[hsl(var(--card))]` and a small shadow.
@@ -31,7 +37,7 @@
 - Login (`/`): Supabase password grant (Vite env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → onboarding. Falls back to mock in dev if env missing.
 - Onboarding (`/onboarding`): Create Stream via `POST /streams` (fields: `mission`, `sources`, `cadence`); navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
 - Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; falls back to mock + saved mission if API unavailable.
-- StreamView (`/streams/:id`): shows a reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Edit stream (mission, sources, cadence) and Delete stream actions are available; “Run Now” triggers `POST /streams/:id/run`.
+- StreamView (`/streams/:id`): shows a reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Each run includes `curations` with `links` resolved by backend join (`curation_cluster_links.url_id → urls(id)`). Edit stream (mission, sources, cadence) and Delete stream actions are available; “Run Now” triggers `POST /streams/:id/run`.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).

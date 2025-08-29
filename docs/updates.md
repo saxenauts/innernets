@@ -3,12 +3,17 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-08-29 — Fixed external link clicks on Stream page by removing JS `window.open` handlers and container-level `onClick`. Links now rely on native anchor behavior with `target="_blank"` + `rel="noopener noreferrer"`, ensuring consistent new-tab opening across browsers and blockers. (ref: frontend/src/components/ItemCard.tsx)
+- 2025-08-29 — Hardened StreamView link normalization: accept `url|href|link`, add `https://` for `www.` or schemeless links, and expose a dev debug flag `window.__IN_DEBUG_LINKS = true` to log raw vs normalized links. Also add data attributes to ItemCard for quick DOM inspection. (ref: frontend/src/pages/StreamView.tsx, frontend/src/components/ItemCard.tsx)
+- 2025-08-29 — Backend: fix for missing links in `GET /streams/:id/runs` — clusters were grouped before links were attached, so API returned empty `links`. Now links are joined via explicit FK `urls:urls!curation_cluster_links_url_id_fkey(...)` and attached prior to grouping. Removed metrics-based fallback to keep a single source of truth. (ref: backend/src/app/repositories/curations_repo.py)
+- 2025-08-29 — Backend: normalize LLM `link_ids` (accepts forms like "1", "01", "#01") when persisting curations so they map to assigned IDs ("01"). (ref: backend/src/app/agents/search_workflow.py)
 - 2025-08-29 — Added reverse‑chronological runs feed: backend supports `GET /streams/:id/runs?limit=10&before=<iso>` (returns runs with clusters+links and `next_cursor`), and frontend StreamView renders a minimal feed with Load more and intersection‑based infinite scroll. (ref: backend/src/app/repositories/curations_repo.py, backend/src/app/routes/streams.py, frontend/src/pages/StreamView.tsx)
 - 2025-08-29 — Streams UX polish: added loader skeletons to Streams list to avoid empty flash and removed stray divider when list is empty. Adjusted auth flows: Login now routes to Streams; added Sign up page that routes to Onboarding (Create Stream). Onboarding no longer pre-fills from previous local values. (ref: frontend/src/pages/Streams.tsx, frontend/src/pages/Login.tsx, frontend/src/pages/SignUp.tsx, frontend/src/App.tsx, frontend/src/components/NavBar.tsx, frontend/src/pages/Onboarding.tsx)
 - 2025-08-29 — Scheduler hardening: map cadence labels ('daily'/'3xweek'/'weekly'/'discovery') to real intervals; auto-disable the demo schedule named 'e2e-scheduler-demo'; and skip agent execution for jobs without `stream_id` whose params only have `schedule_id` (prevents wasteful demo runs). (ref: backend/src/app/scheduler/ticker.py, backend/src/app/agents/search_workflow.py)
 - 2025-08-29 — Removed demo script that created 'e2e-scheduler-demo' schedules and cleaned docs. New sign-ups only create per-stream schedules; no demo schedules are created. (ref: backend/src/app/scheduler/demo.py removed, backend/SCHEDULER.md, backend/ENVIRONMENT.md, backend/AGENTS.md)
 - 2025-08-29 — Streams edit/delete: added PUT `/streams/:id` (accepts `mission`, `sources`, `cadence`) and DELETE `/streams/:id` (soft-delete + disable schedule). Frontend StreamView now has Edit and Delete actions with a minimal inline form. Renamed UI copy to “Sources” (was “hints”). Added backend tests for update/delete. (ref: backend/src/app/routes/streams.py, backend/src/app/repositories/streams_repo.py, backend/tests/test_streams_api.py, frontend/src/pages/StreamView.tsx)
 - 2025-08-29 — Frontend buttons: added consistent hover effects (lift + shadow + color) across all `Button` variants and the custom `Select` trigger; added a `destructive` button variant for Delete actions. (ref: frontend/src/components/ui/button.tsx, frontend/src/components/ui/select.tsx)
+- 2025-08-29 — Delete UX: after confirming delete, StreamView navigates to Streams and shows a one-off success toast; edit modal closes automatically. (ref: frontend/src/pages/StreamView.tsx, frontend/src/pages/Streams.tsx)
 - 2025-08-29 — Streams + URL registry + curations storage implemented; Streams API added (create/list/get/update/run-now/latest). Orchestrator persists runs and maps link IDs to URL registry. Frontend integrated with API: login via Supabase password grant, create streams, list streams, view latest curations, and trigger Run Now. CORS enabled for dev. (ref: backend migrations 0003; backend/src/app/routes/streams.py; backend/src/app/agents/search_workflow.py; frontend src/pages/Login/Onboarding/Streams/StreamView)
 - 2025-08-28 — Scheduler runtime integrated: added in-app background scheduler (thread) and standalone worker entrypoint; one-command launcher (`app.run_backend`) and Procfile provided. Ticker hardened with due-filter guard and scheduled payload now hydrated from schedule meta params. Enhanced demo to stress queue and print per-job outputs. (ref: backend/src/app/main.py, backend/src/app/scheduler/{runner.py,worker_main.py,ticker.py,demo.py}, backend/src/app/run_backend.py, backend/Procfile)
 - 2025-08-28 — Fixed structured outputs for search workflow: enforced integer 0–100 scoring via prompt update and Pydantic validator (coercion from 0–5 floats). Tightened Azure provider system hint to avoid decimals for integer fields. Added unit test for score coercion. (ref: backend/src/app/llm/schemas.py, backend/src/app/llm/prompts.py, backend/src/app/llm/providers/azure_openai.py, backend/tests/test_llm_schema_coercion.py, backend/src/app/agents/search_workflow.py)
@@ -88,3 +93,14 @@ Guidelines
 - Reduced query generation to exactly 5 to lower Exa fanout cost.
 - Removed candidate cap: pass all deduped candidates to the LLM for filtering.
 - Updated live full‑trace test to print each step’s raw prompts/outputs.
+## Task Board
+
+### Todo
+- Add small “copy link” affordance next to each curation title (optional for constrained webviews).
+- Add backend tests for `/streams/:id/runs` join behavior (ensures `links` always populated).
+
+### In Progress
+- None
+
+### Done
+- Fix StreamView curations not clickable: ensure `GET /streams/:id/runs` returns `clusters[].links` via explicit FK join and attach before grouping; frontend renders native anchors only.
