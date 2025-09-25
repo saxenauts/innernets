@@ -104,3 +104,15 @@ Guidelines
 
 ### Done
 - Fix StreamView curations not clickable: ensure `GET /streams/:id/runs` returns `clusters[].links` via explicit FK join and attach before grouping; frontend renders native anchors only.
+
+## 2025-09-25 — Surfer Docker Integration (streams default)
+- Added Surfer client and workflow to replace Exa-based search for Streams by default (legacy kept for back-compat).
+- New modules: `backend/src/app/clients/surfer_client.py`, `backend/src/app/agents/surfer_workflow.py`, `backend/src/app/agents/dispatcher.py`, `backend/src/app/llm/surfer_steps.py` and prompts.
+- Scheduler now uses `schedules.meta.agent` to decide which agent to enqueue; Streams creation sets `meta.agent="surfer_v1"`.
+- Worker dispatcher runs Surfer by default; long-running jobs poll every `SURFER_POLL_INTERVAL_S`.
+- Env: added `SURFER_*` variables in `backend/.env.example` and `backend/ENVIRONMENT.md`.
+- Second-stage LLM remix now combines Surfer `{summary,links[]}` into 2–5 highlight curations with richer hooks and explicit link lists.
+
+### Todo
+- Add unit tests for dispatcher selection and Surfer client error handling.
+- Add API endpoint to expose Surfer job status/log URLs per run for debugging (optional).

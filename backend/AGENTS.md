@@ -12,7 +12,9 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 ## Architecture (FastAPI + Scheduler + Streams)
 - API layer: FastAPI app (`backend/src/app/main.py`) with a minimal health endpoint.
 - Streams API: user-created Streams (`mission`, `sources` → stored as `sources_hints`, `cadence`) with CRUD (POST/GET/PUT/DELETE) and Run Now; latest curations and paginated runs endpoints.
-- Search Agent service: consumes streams and schedules, runs the Exa-first plan (LLM steps centralized in `llm/search_steps.py`).
+- Surfer Agent (new, default): consumes streams and schedules, asks the LLM to draft a single exploration instruction, submits it to the Surfer Docker service, polls for completion, then remixes the `{summary, links[]}` results into 2–5 top-line curations (title + hook + links) via a second LLM step, and persists to DB.
+- Search Agent (deprecated for streams, kept): Exa-first plan using `llm/search_steps.py` and `clients/exa_client.py` remains for back-compat.
+- Dispatcher: `backend/src/app/agents/dispatcher.py` selects `surfer_workflow` or `search_workflow` per job (`payload.agent` or `schedules.meta.agent`).
 - Job Scheduler/Worker: polls due schedules and executes jobs; ensures idempotency and safe retries.
 - LLM Adapter: unifies Azure OpenAI and OpenAI native under one interface.
 - Data: Supabase (Postgres). Use service-role key server-side; never commit keys.
@@ -34,6 +36,7 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Environment & config: `backend/ENVIRONMENT.md`
 - Database schema (evolving): `backend/SCHEMA.md`
 - Service plan: `docs/search-only-plan.md`
+- Surfer Docker integration: `docs/surfer-docker-integration.md`, `docs/surfer-docker-service-api.md`
 
 ## Data Model (overview; see SCHEMA.md)
 - Users: Supabase Auth users (canonical). Local `profiles` for app-specific fields.
@@ -150,6 +153,11 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Curations (final): `{ title, hook, links: [{ url, title?, domain, position }], position }`.
 - `links` are resolved database joins (no metrics fallback): `curation_cluster_links.url_id` → `urls(id)`.
 - New runs normalize LLM `link_ids` to zero‑padded IDs when persisting, ensuring consistent URL mapping.
+
+### Surfer integration defaults
+- New streams set their schedule `meta.agent = "surfer_v1"`.
+- The scheduler enqueues jobs with `payload.agent` taken from schedule meta (defaults to `surfer_v1` for stream-backed schedules).
+- The dispatcher runs `surfer_workflow` for `surfer_v1` (or unknown agents), and `search_workflow` only when explicitly requested (legacy).
 
 ### Frontend integration checklist
 - Auth: use Supabase access token in `Authorization: Bearer <token>` for all user‑scoped endpoints.

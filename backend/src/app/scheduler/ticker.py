@@ -134,7 +134,18 @@ def tick(max_jobs: int = 25) -> List[Dict[str, Any]]:
         except Exception:
             meta_params = {}
 
-        payload = {"agent": "search_only_v1", "params": {"schedule_id": schedule_id, **(meta_params or {})}}
+        # Select agent from schedule meta (default to surfer_v1 for streams)
+        agent = None
+        try:
+            if isinstance(meta, dict):
+                agent = meta.get("agent") or meta.get("engine")
+        except Exception:
+            agent = None
+        if not agent:
+            # Default to surfer for stream‑backed schedules; otherwise keep legacy search
+            agent = "surfer_v1" if (isinstance(meta, dict) and meta.get("stream_id")) else "search_only_v1"
+
+        payload = {"agent": agent, "params": {"schedule_id": schedule_id, **(meta_params or {})}}
         # If this schedule is tied to a stream (as created by streams_repo), include stream_id
         try:
             if isinstance(meta, dict) and meta.get("stream_id"):

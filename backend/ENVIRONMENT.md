@@ -82,3 +82,16 @@ Troubleshooting 401 (Unauthorized)
 
 Change Log
 - 2025-08-26 — Initial environment matrix for DB, providers, scheduling, telemetry.
+
+Surfer Docker Service (External)
+- SURFER_BASE_URL: Base URL for the Surfer service (e.g., `http://127.0.0.1:8001`). Ensure it does not conflict with this backend’s port.
+- SURFER_API_KEY: Optional bearer token if the service enforces auth.
+- SURFER_POLL_INTERVAL_S: Poll interval when waiting for long‑running jobs (default 30).
+- SURFER_MAX_WAIT_S: Max wait in seconds before timing out (default 1800).
+- SURFER_HEADLESS: `1`/`0` for browser headless mode (default 1).
+- SURFER_MAX_STEPS: Explorer max steps hint (default 3).
+- SURFER_USE_MOCK: `1` to call `/api/explorer/mock` in dev for fast integration.
+
+Notes
+- For neural/auto searches, we enforce `numResults ≤ 25` to stay within the low-cost tier.
+- Our API responses include `provider_cost` mirroring Exa's `costDollars` breakdown.

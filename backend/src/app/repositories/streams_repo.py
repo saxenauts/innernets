@@ -41,7 +41,7 @@ def create_stream(user_id: str, token: str, fields: Dict[str, Any]) -> Dict[str,
         "cadence": payload["cadence"],
         "time_zone": payload["time_zone"],
         "active": True,
-        "meta": {"stream_id": row["id"]},
+        "meta": {"stream_id": row["id"], "agent": "surfer_v1"},
     }
     _schedules_table(token).insert(sched_payload).execute()
     return row

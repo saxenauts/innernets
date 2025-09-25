@@ -22,7 +22,9 @@ Code
  - Search workflow core:
    - `src/app/llm/prompts.py` — centralized double‑braced templates (system + user prompts)
    - `src/app/llm/search_steps.py` — Pydantic schemas + wrappers for LLM steps
-   - `src/app/agents/search_workflow.py` — orchestration (IDs only to LLM; Exa routing)
+ - `src/app/agents/search_workflow.py` — orchestration (IDs only to LLM; Exa routing)
+ - `src/app/agents/surfer_workflow.py` — orchestration for Surfer Docker service (LLM → instruction → submit/poll → remix final feed)
+ - `src/app/agents/dispatcher.py` — routes jobs to either Surfer or legacy Exa workflow
 
 Service Plan
 - Search-only agent loop lives in `docs/search-only-plan.md`.
@@ -46,6 +48,17 @@ Development (Poetry)
   - Get the token from your frontend session or Supabase Auth, and set `SUPABASE_JWT_SECRET` in `backend/.env`.
   - Audience: tokens from Supabase use `aud: "authenticated"`. Backend verifies this by default; override with `SUPABASE_JWT_AUD` if needed.
   - Loading env: start from `backend/` or set `DOTENV_PATH=backend/.env` if starting from repo root.
+
+Surfer Docker Integration
+- Start the Surfer service from its repo (Docker). See `docs/surfer-docker-integration.md`.
+- Set `SURFER_BASE_URL` in `backend/.env` to its host:port (avoid port 8000 collision with this backend).
+- In dev, `SURFER_USE_MOCK=1` will use `/api/explorer/mock` for fast wiring.
+- Streams created via `/streams` default their schedule `meta.agent` to `surfer_v1`. Scheduler payloads inherit this and the dispatcher runs `surfer_workflow` accordingly.
+- The workflow performs two LLM steps: first to author the Surfer instruction, second to remix the returned `{summary, links[]}` results into 2–5 user-facing curations with combined links.
+
+Long-running jobs
+- Surfer runs 5–25 minutes. The worker polls status every `SURFER_POLL_INTERVAL_S` seconds and persists a `curation_run` upon completion.
+- For prod, run API and worker separately. Ensure the worker has network access to the Surfer service.
 
 Next
 - Add logging strategy, DB migrations, scheduler worker, and expand LLM adapter (retries, rate limits, cost est.).

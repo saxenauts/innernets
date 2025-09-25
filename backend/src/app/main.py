@@ -7,7 +7,7 @@ from .routes import profile as profile_routes
 from .routes import streams as streams_routes
 from .config import settings
 from .scheduler.runner import start_background_scheduler
-from .agents import search_workflow as sw
+from .agents.dispatcher import handle as handle_job
 
 
 load_dotenv(os.getenv("DOTENV_PATH", ".env"), override=False)
@@ -53,7 +53,7 @@ def _maybe_start_scheduler() -> None:
     enabled = os.getenv("SCHEDULER_IN_APP", "0") in {"1", "true", "TRUE"}
     if not enabled:
         return
-    th, stop = start_background_scheduler(sw.run, None)
+    th, stop = start_background_scheduler(handle_job, None)
     _sched_ctx["thread"] = th
     _sched_ctx["stop"] = stop
 

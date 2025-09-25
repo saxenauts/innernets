@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
+from datetime import datetime, timezone
 
 from ..supabase_client import get_service_client
 
@@ -27,8 +28,7 @@ def ensure_url(url: str, title: Optional[str] = None, description: Optional[str]
     got = tbl.select("*").eq("url", u).limit(1).execute().data or []
     if got:
         row = got[0]
-        patch: Dict[str, Any] = {"last_seen_at": None}
-        patch["last_seen_at"] = None  # server will set to now() if omitted; explicit update still okay
+        patch: Dict[str, Any] = {"last_seen_at": datetime.now(timezone.utc).isoformat()}
         if title:
             patch["last_title"] = title
         if description:
@@ -43,7 +43,11 @@ def ensure_url(url: str, title: Optional[str] = None, description: Optional[str]
         got2 = tbl.select("id, url, domain, last_title, last_description, last_published_at").eq("id", row["id"]).limit(1).execute().data or []
         return got2[0] if got2 else row
     # Insert new
-    payload: Dict[str, Any] = {"url": u, "domain": dm or ""}
+    payload: Dict[str, Any] = {
+        "url": u,
+        "domain": dm or "",
+        "last_seen_at": datetime.now(timezone.utc).isoformat(),
+    }
     if title:
         payload["last_title"] = title
     if description:
@@ -69,4 +73,3 @@ def bulk_ensure(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         )
         out.append({"url": row["url"], "url_id": row["id"]})
     return out
-

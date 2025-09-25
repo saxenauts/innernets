@@ -47,5 +47,17 @@ class Settings:
         self.SCHEDULE_POLL_INTERVAL_MS: int = int(os.getenv("SCHEDULE_POLL_INTERVAL_MS", "30000"))
         self.SCHEDULE_MAX_JOBS_PER_TICK: int = int(os.getenv("SCHEDULE_MAX_JOBS_PER_TICK", "25"))
 
+        # Surfer Docker Service (external)
+        # Note: choose a port that will not conflict with this backend in dev.
+        # Example: SURFER_BASE_URL=http://127.0.0.1:8001
+        self.SURFER_BASE_URL: str = os.getenv("SURFER_BASE_URL", "http://127.0.0.1:8001")
+        self.SURFER_API_KEY: Optional[str] = os.getenv("SURFER_API_KEY")
+        self.SURFER_POLL_INTERVAL_S: int = int(os.getenv("SURFER_POLL_INTERVAL_S", "30"))
+        self.SURFER_MAX_WAIT_S: int = int(os.getenv("SURFER_MAX_WAIT_S", "1800"))  # 30 minutes
+        self.SURFER_HEADLESS: bool = os.getenv("SURFER_HEADLESS", "1") in {"1", "true", "TRUE"}
+        self.SURFER_MAX_STEPS: int = int(os.getenv("SURFER_MAX_STEPS", "3"))
+        # Dev-only: route to /api/explorer/mock
+        self.SURFER_USE_MOCK: bool = os.getenv("SURFER_USE_MOCK", "0") in {"1", "true", "TRUE"}
+
 
 settings = Settings()
