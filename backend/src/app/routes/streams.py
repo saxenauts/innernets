@@ -135,18 +135,18 @@ def list_runs(
     runs = curations_repo.get_runs(stream_id, limit=limit, before_started_at=before) or []
     out_runs: List[Dict[str, Any]] = []
     for r in runs:
-            curations: List[Dict[str, Any]] = []
-            for idx, c in enumerate(r.get("clusters", []) or []):
-                links = c.get("links", [])
-                curations.append(
-                    {
-                        "title": c.get("title"),
-                        "hook": c.get("hook"),  # deprecated; kept for back-compat
-                        "body_md": c.get("body_md"),
-                        "links": links,
-                        "position": c.get("position", idx),
-                    }
-                )
+        curations: List[Dict[str, Any]] = []
+        for idx, c in enumerate(r.get("clusters", []) or []):
+            links = c.get("links", [])
+            curations.append(
+                {
+                    "title": c.get("title"),
+                    "hook": c.get("hook"),  # deprecated; kept for back-compat
+                    "body_md": c.get("body_md"),
+                    "links": links,
+                    "position": c.get("position", idx),
+                }
+            )
         out_runs.append(
             {
                 "id": r.get("id"),
