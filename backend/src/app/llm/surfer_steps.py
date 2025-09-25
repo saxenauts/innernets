@@ -20,9 +20,9 @@ class RemixLink(BaseModel):
 
 
 class RemixCuration(BaseModel):
-    title: str = Field(..., max_length=120)
-    hook: str = Field(..., max_length=160)
-    links: List[RemixLink] = Field(..., min_items=1, max_items=4)
+    title: str = Field(..., max_length=160)
+    body_md: str = Field(..., description="Multi-paragraph markdown-like content; bold key phrases, short bullets allowed")
+    links: List[RemixLink] = Field(..., min_items=1)
 
 
 class RemixCurationsOut(BaseModel):
@@ -71,6 +71,8 @@ def remix_curations(
     cfg: ProviderConfig,
     mission: str,
     raw_curations: List[Dict[str, Any]],
+    prior_context_str: str,
+    sources_text: Optional[str] = None,
     *,
     options: Optional[InvokeOptions] = None,
 ) -> RemixCurationsOut:
@@ -78,6 +80,8 @@ def remix_curations(
         prompts.REMIX_CURATIONS,
         {
             "mission": mission,
+            "sources_text": (sources_text or "(none)"),
+            "prior_context_str": prior_context_str or "(none)",
             "raw_curations_json": json.dumps(raw_curations, ensure_ascii=False),
         },
     )
@@ -88,5 +92,5 @@ def remix_curations(
         out_schema=JsonSchema(properties={}, required=[]),
         pydantic_model=RemixCurationsOut,
     )
-    res = call_structured(cfg, req, options or InvokeOptions(temperature=1.0, max_tokens=768))
+    res = call_structured(cfg, req, options or InvokeOptions(temperature=1.0, max_tokens=1200))
     return RemixCurationsOut(**(res.output or {}))

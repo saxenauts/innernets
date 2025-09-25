@@ -25,11 +25,18 @@ def complete_curation_run(run_id: str, status: str = "succeeded", metrics: Optio
 
 
 def insert_clusters(run_id: str, clusters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    # Expect items like {title, hook, position}
-    payload = [
-        {"run_id": run_id, "title": c["title"], "hook": c.get("hook", ""), "position": int(c.get("position", idx))}
-        for idx, c in enumerate(clusters)
-    ]
+    # Expect items like {title, hook, position, body_md?}
+    payload = []
+    for idx, c in enumerate(clusters):
+        row = {
+            "run_id": run_id,
+            "title": c["title"],
+            "hook": c.get("hook", ""),
+            "position": int(c.get("position", idx)),
+        }
+        if c.get("body_md") is not None:
+            row["body_md"] = c.get("body_md")
+        payload.append(row)
     resp = _tbl("curation_clusters").insert(payload).execute()
     return resp.data or []
 
@@ -52,7 +59,7 @@ def get_latest_run(stream_id: str) -> Optional[Dict[str, Any]]:
     if not runs:
         return None
     run = runs[0]
-    clusters = _tbl("curation_clusters").select("id, run_id, title, hook, position").eq("run_id", run["id"]).order("position", desc=False).execute().data or []
+    clusters = _tbl("curation_clusters").select("id, run_id, title, hook, body_md, position").eq("run_id", run["id"]).order("position", desc=False).execute().data or []
     if clusters:
         cluster_ids = [c["id"] for c in clusters]
         # Join links with URLs via explicit FK (url_id → urls.id)
@@ -131,7 +138,7 @@ def get_runs(stream_id: str, limit: int = 10, before_started_at: Optional[str] =
     # Fetch clusters for all runs
     clusters = (
         _tbl("curation_clusters")
-        .select("id, run_id, title, hook, position")
+        .select("id, run_id, title, hook, body_md, position")
         .in_("run_id", run_ids)
         .order("position", desc=False)
         .execute()

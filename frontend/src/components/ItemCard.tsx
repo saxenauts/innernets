@@ -1,11 +1,14 @@
 import type { Item } from '../mocks/mock-data';
+import ReactMarkdown from 'react-markdown';
 import { Badge } from './ui/badge';
 
 function domainFrom(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
 }
 
-export default function ItemCard({ item, isNew = false }: { item: Item; isNew?: boolean }) {
+type RichItem = Item & { bodyMd?: string };
+
+export default function ItemCard({ item, isNew = false }: { item: RichItem; isNew?: boolean }) {
   const first = item.links[0];
   const source = first ? domainFrom(first.url) : '';
   return (
@@ -28,7 +31,13 @@ export default function ItemCard({ item, isNew = false }: { item: Item; isNew?: 
       ) : (
         <div className="block text-lg font-semibold tracking-tight text-foreground">{item.title}</div>
       )}
-      <p className="mt-1 text-foreground/80">{item.summary}</p>
+      {item.bodyMd ? (
+        <div className="mt-1 prose prose-sm max-w-none text-foreground/90">
+          <ReactMarkdown>{item.bodyMd}</ReactMarkdown>
+        </div>
+      ) : (
+        <p className="mt-1 text-foreground/80">{item.summary}</p>
+      )}
       <div className="mt-1 text-sm text-muted-foreground">
         {source ? `Source: ${source}` : ''}{item.links.length > 1 ? ` • Links: ${item.links.length}` : ''}
       </div>

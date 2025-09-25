@@ -101,7 +101,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     raw_curations: List[Dict[str, Any]] = list(result.get("curations") or [])
 
     # LLM: turn summary -> title + hook
-    remix = surfer_steps.remix_curations(cfg, mission, raw_curations)
+    remix = surfer_steps.remix_curations(cfg, mission, raw_curations, prior_context, sources_hints)
     curated = list(remix.curations or [])
 
     if not curated and raw_curations:
@@ -109,7 +109,7 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
         curated = []
         for rc in raw_curations[:4]:
             summary = (rc.get("summary") or "").strip()
-            title = (summary[:110] + "...") if len(summary) > 110 else summary or "New insight"
+            title = (summary[:110] + "...") if len(summary) > 110 else (summary or "New insight")
             links = rc.get("links") or []
             clean_links = []
             for l in links[:3]:
@@ -119,11 +119,8 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
                 clean_links.append({"url": url, "title": (l.get("title") or "").strip() or None})
             if not clean_links:
                 continue
-            curated.append({
-                "title": title,
-                "hook": summary[:150],
-                "links": clean_links,
-            })
+            body_md = f"**Key** — {summary}"
+            curated.append({"title": title, "body_md": body_md, "links": clean_links})
 
     # Persist curated feed (title/hook/links)
     curated_dicts: List[Dict[str, Any]] = []
@@ -152,12 +149,14 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
             persistable: List[Dict[str, Any]] = []
             for idx, item in enumerate(curated_dicts):
                 title = (item.get("title") or "").strip()
-                hook = (item.get("hook") or "").strip()
+                body_md = (item.get("body_md") or "").strip()
                 links_payload = item.get("links") or []
-                if not title or not hook or not links_payload:
+                if not title or not body_md or not links_payload:
                     continue
                 persistable.append(item)
-                clusters_payload.append({"title": title[:120], "hook": hook[:200], "position": len(persistable) - 1})
+                # Deprecated hook: store a short teaser derived from body_md for back-compat
+                teaser = body_md.splitlines()[0].strip()
+                clusters_payload.append({"title": title[:160], "hook": teaser[:200], "position": len(persistable) - 1, "body_md": body_md})
             cluster_rows = curations_repo.insert_clusters(run_row["id"], clusters_payload) if clusters_payload else []
             for cur_item, row in zip(persistable, cluster_rows):
                 link_refs: List[Dict[str, Any]] = []

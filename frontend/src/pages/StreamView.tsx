@@ -267,7 +267,7 @@ export default function StreamView() {
                         // eslint-disable-next-line no-console
                         console.debug('[StreamView] curation', { title: c.title, raw: c.links, normalized: links });
                       }
-                      const item = { title: c.title, summary: c.hook, links };
+                      const item = { title: c.title, summary: c.hook, bodyMd: c.body_md || undefined, links };
                       return <ItemCard key={r.id + ':' + idx} item={item as any} isNew={false} />;
                     })}
                   </div>
