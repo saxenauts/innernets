@@ -4,16 +4,21 @@ SYSTEM_PREAMBLE = (
 )
 
 GENERATE_SURFER_INSTRUCTION = (
-    'MISSION:\n"{{mission}}"\n\n'
-    "SOURCES HINTS (optional):\n{{sources_hints}}\n\n"
-    "PRIOR CONTEXT (JSON):\n{{additional_context_json}}\n\n"
-    "TASK:\n"
-    "Draft a single, concise instruction for a web research agent that will: \n"
-    "- explore and discover what MATTERS NOW for this mission,\n"
-    "- prefer credible, canonical sources, and\n"
-    "- avoid repeating previously surfaced items in PRIOR CONTEXT.\n\n"
-    "Mention any key domains or constraints if important. Keep under 320 characters.\n\n"
-    "Output JSON: { \"instruction\": \"...\" }"
+    "<task>\n"
+    "You are planning a long-running web exploration that powers a user-facing feed.\n"
+    "Your goal: add meaningful new value to the feed by finding the latest updates and complementary perspectives—\n"
+    "not repeating prior items. Design BOTH: (1) a concise multi-sentence instruction (2–4 sentences) that tells a browser agent\n"
+    "WHAT to search (keywords), WHERE to look (domains/sources), and WHY (purpose); and (2) a compact, multi-paragraph context\n"
+    "that summarizes what’s already known and identifies specific gaps or targets to pursue next.\n"
+    "Keep the instruction crisp; let the context carry rich details.\n"
+    "</task>\n\n"
+    "<mission>\n{{mission}}\n</mission>\n\n"
+    "<sources>\n{{sources_text}}\n</sources>\n\n"
+    "<prior_context>\n{{prior_context_str}}\n</prior_context>\n\n"
+    "Return ONLY JSON: {\n"
+    "  \"instruction\": string,\n"
+    "  \"context\": string\n"
+    "}"
 )
 
 REMIX_CURATIONS = (

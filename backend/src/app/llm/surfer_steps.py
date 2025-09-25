@@ -9,8 +9,9 @@ from .adapter import structured as call_structured
 from . import prompts_surfer as prompts
 
 
-class InstructionOut(BaseModel):
-    instruction: str = Field(..., max_length=320)
+class PlannerOut(BaseModel):
+    instruction: str = Field(..., description="Concise multi-sentence instruction (2–4 sentences)")
+    context: str = Field(..., description="Compact multi-paragraph context summarizing prior knowledge and targets")
 
 
 class RemixLink(BaseModel):
@@ -43,27 +44,27 @@ def generate_instruction(
     cfg: ProviderConfig,
     mission: str,
     sources_hints: Optional[str],
-    additional_context: Optional[Dict[str, Any]] = None,
+    prior_context_str: str,
     *,
     options: Optional[InvokeOptions] = None,
-) -> InstructionOut:
+) -> PlannerOut:
     user_text = _subst(
         prompts.GENERATE_SURFER_INSTRUCTION,
         {
             "mission": mission,
-            "sources_hints": (sources_hints or "(none)"),
-            "additional_context_json": json.dumps(additional_context or {}, ensure_ascii=False),
+            "sources_text": (sources_hints or "(none)"),
+            "prior_context_str": prior_context_str or "(none)",
         },
     )
     req = StructuredRequest(
         instruction=_wrap_instruction(user_text),
         context=None,
-        schema_name="InstructionOut",
+        schema_name="PlannerOut",
         out_schema=JsonSchema(properties={}, required=[]),
-        pydantic_model=InstructionOut,
+        pydantic_model=PlannerOut,
     )
-    res = call_structured(cfg, req, options or InvokeOptions(temperature=1.0, max_tokens=256))
-    return InstructionOut(**(res.output or {}))
+    res = call_structured(cfg, req, options or InvokeOptions(temperature=1.0, max_tokens=768))
+    return PlannerOut(**(res.output or {}))
 
 
 def remix_curations(

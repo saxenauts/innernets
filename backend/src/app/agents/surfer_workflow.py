@@ -10,31 +10,38 @@ from app.clients import surfer_client
 from app.supabase_client import get_service_client
 
 
-def _compose_stream_context(prev_ctx: Dict[str, Any]) -> str:
-    curations = prev_ctx.get("curations") or []
-    if not curations:
+def _build_prior_context(stream_id: Optional[str]) -> str:
+    """Build a multi-line prior context string from the last 5 runs.
+
+    Format per curation: ISO_TIMESTAMP | Title — Hook | URLs: url1, url2, ...
+    """
+    if not stream_id:
         return ""
+    try:
+        runs = curations_repo.get_runs(stream_id, limit=5)
+    except Exception:
+        runs = []
     lines: List[str] = []
-    for c in curations[:4]:
-        title = (c.get("title") or "").strip()
-        hook = (c.get("hook") or "").strip()
-        parts: List[str] = []
-        if title:
-            parts.append(title)
-        if hook:
-            parts.append(hook)
-        sample_links = c.get("link_urls_sample") or []
-        if sample_links:
-            parts.append("links: " + ", ".join([str(u) for u in sample_links[:2]]))
-        if parts:
-            lines.append(" — ".join(parts))
-    if not lines:
-        return ""
-    last_at = prev_ctx.get("last_run_at")
-    header = "Recent highlights"
-    if last_at:
-        header += f" (last run: {last_at})"
-    return header + ":\n- " + "\n- ".join(lines)
+    for r in runs or []:
+        ts = r.get("started_at") or r.get("run_at") or ""
+        curations = r.get("curations") or []
+        for c in curations:
+            title = (c.get("title") or "").strip()
+            hook = (c.get("hook") or "").strip()
+            links = c.get("links") or []
+            urls = [str(l.get("url")).strip() for l in links if l.get("url")] if isinstance(links, list) else []
+            parts: List[str] = []
+            if ts:
+                parts.append(ts)
+            if title:
+                parts.append(title)
+            if hook:
+                parts.append(hook)
+            if urls:
+                parts.append("URLs: " + ", ".join(urls[:6]))
+            if parts:
+                lines.append(" | ".join(parts))
+    return "\n".join(lines)
 
 
 def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]:
@@ -54,21 +61,16 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
         except Exception:
             pass
 
-    # Build prior context and optional stream_context string
-    prev_ctx: Dict[str, Any] = {}
-    try:
-        if stream_id:
-            prev_ctx = curations_repo.get_previous_context(stream_id) or {}
-    except Exception:
-        prev_ctx = {}
-    stream_context = _compose_stream_context(prev_ctx)
+    # Build rich prior context string from recent runs
+    prior_context = _build_prior_context(stream_id)
 
     # LLM: generate one concise instruction for Surfer
     cfg = ProviderConfig.from_env()
     instr_out = surfer_steps.generate_instruction(
-        cfg, mission, sources_hints, additional_context=prev_ctx, options=InvokeOptions(temperature=1.0, max_tokens=256)
+        cfg, mission, sources_hints, prior_context, options=InvokeOptions(temperature=1.0, max_tokens=768)
     )
-    instruction = instr_out.instruction.strip() or mission
+    instruction = (instr_out.instruction or "").strip() or mission
+    stream_context = (instr_out.context or "").strip()
 
     # Submit to surfer service and wait (long-running)
     if settings.SURFER_USE_MOCK:
