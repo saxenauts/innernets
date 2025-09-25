@@ -86,3 +86,7 @@ FAQ
 - Where do migrations live? `backend/migrations/`
 - Can I change schema via the UI? Yes for dev experiments, but capture the diff as SQL and commit it here.
 - What about seed data? Add seed scripts under `backend/migrations/seeds/` as needed.
+Curations Markdown Body (0004)
+- Apply migration `backend/migrations/2025-09-25_0004_curation_body_md.sql` to add `body_md` to `curation_clusters`.
+- After applying, the API will begin returning `body_md` fields in `GET /streams/:id/latest` and `GET /streams/:id/runs`.
+- Existing runs will have `body_md = null`; new runs will populate it via the remixer.

@@ -12,7 +12,7 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 ## Architecture (FastAPI + Scheduler + Streams)
 - API layer: FastAPI app (`backend/src/app/main.py`) with a minimal health endpoint.
 - Streams API: user-created Streams (`mission`, `sources` → stored as `sources_hints`, `cadence`) with CRUD (POST/GET/PUT/DELETE) and Run Now; latest curations and paginated runs endpoints.
-- Surfer Agent (new, default): consumes streams and schedules, asks the LLM to draft a single exploration instruction, submits it to the Surfer Docker service, polls for completion, then remixes the `{summary, links[]}` results into 2–5 top-line curations (title + hook + links) via a second LLM step, and persists to DB.
+- Surfer Agent (new, default): consumes streams and schedules, asks the LLM to draft a single exploration instruction (now returns both `instruction` and `context`), submits it to the Surfer Docker service, polls for completion, then remixes the `{summary, links[]}` results into rich markdown `body_md` curations (title + body_md + links) via a second LLM step, and persists to DB.
 - Search Agent (deprecated for streams, kept): Exa-first plan using `llm/search_steps.py` and `clients/exa_client.py` remains for back-compat.
 - Dispatcher: `backend/src/app/agents/dispatcher.py` selects `surfer_workflow` or `search_workflow` per job (`payload.agent` or `schedules.meta.agent`).
 - Job Scheduler/Worker: polls due schedules and executes jobs; ensures idempotency and safe retries.
@@ -150,9 +150,9 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - GET `/streams/:id/runs?limit=10&before=iso` — reverse-chronological paginated runs. Each run contains `clusters[]` with `links` joined via the same FK.
 
 ### Output shape for frontend
-- Curations (final): `{ title, hook, links: [{ url, title?, domain, position }], position }`.
+- Curations (final): `{ title, body_md, links: [{ url, title?, domain, position }], position, hook? }`. `hook` is deprecated and present only for back‑compat; prefer `body_md`.
 - `links` are resolved database joins (no metrics fallback): `curation_cluster_links.url_id` → `urls(id)`.
-- New runs normalize LLM `link_ids` to zero‑padded IDs when persisting, ensuring consistent URL mapping.
+- Surfer remixer quantity is unconstrained; it returns as many curations as needed.
 
 ### Surfer integration defaults
 - New streams set their schedule `meta.agent = "surfer_v1"`.
@@ -163,4 +163,4 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Auth: use Supabase access token in `Authorization: Bearer <token>` for all user‑scoped endpoints.
 - Streams: implemented (`POST/GET/PUT /streams`, `POST /streams/:id/run`).
 - Results: implemented (`GET /streams/:id/latest`) with resolved links.
-- UI: render curations (title + hook + links); "Run Now" triggers a job; scheduled runs will append curations per cadence.
+- UI: render curations (title + body_md markdown + link chips); "Run Now" triggers a job; scheduled runs will append curations per cadence.

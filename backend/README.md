@@ -23,7 +23,7 @@ Code
    - `src/app/llm/prompts.py` — centralized double‑braced templates (system + user prompts)
    - `src/app/llm/search_steps.py` — Pydantic schemas + wrappers for LLM steps
  - `src/app/agents/search_workflow.py` — orchestration (IDs only to LLM; Exa routing)
- - `src/app/agents/surfer_workflow.py` — orchestration for Surfer Docker service (LLM → instruction → submit/poll → remix final feed)
+- `src/app/agents/surfer_workflow.py` — orchestration for Surfer Docker service (LLM → instruction+context → submit/poll → remix final markdown feed)
  - `src/app/agents/dispatcher.py` — routes jobs to either Surfer or legacy Exa workflow
 
 Service Plan
@@ -54,7 +54,7 @@ Surfer Docker Integration
 - Set `SURFER_BASE_URL` in `backend/.env` to its host:port (avoid port 8000 collision with this backend).
 - In dev, `SURFER_USE_MOCK=1` will use `/api/explorer/mock` for fast wiring.
 - Streams created via `/streams` default their schedule `meta.agent` to `surfer_v1`. Scheduler payloads inherit this and the dispatcher runs `surfer_workflow` accordingly.
-- The workflow performs two LLM steps: first to author the Surfer instruction, second to remix the returned `{summary, links[]}` results into 2–5 user-facing curations with combined links.
+- The workflow performs two LLM steps: first to author the Surfer instruction+context (task-first XML prompt), second to remix Surfer’s `{summary, links[]}` into a markdown body (`body_md`) per curation with explicit links.
 
 Long-running jobs
 - Surfer runs 5–25 minutes. The worker polls status every `SURFER_POLL_INTERVAL_S` seconds and persists a `curation_run` upon completion.
@@ -83,13 +83,13 @@ Live Full‑Trace Test (real providers)
 - The test prints each step’s prompt (with substitutions), raw JSON outputs, Exa calls, ID assignment, and curations.
 
 Output Shape (for frontend)
-- Final object (curations): `[{ title, hook, link_ids: ["01","02","03"] }, …]`
-- Backend holds ID↔URL mapping internally. Next step is to expose an API that returns curations and resolves IDs → URLs.
+- Final object (curations): `[{ title, body_md, links: [{ url, title?, domain }], position, hook? }, …]`.
+- `hook` is deprecated. Prefer `body_md` for rendering; the backend still provides `hook` as a short teaser for older runs.
 
 Frontend Integration (next steps)
 - Auth: wire Supabase JWT to backend (`Authorization: Bearer <token>`) for any user‑scoped endpoints.
 - Streams: add Stream model/endpoints (mission, cadence) and create schedules from the frontend.
-- Results: add a read endpoint to fetch latest run’s curations for a stream (include URL mapping).
+- Results: read endpoints return `title`, `body_md`, and resolved `links`. The frontend renders markdown via `react-markdown` and chips for links.
 ## Streams API (Preview)
 
 All endpoints require `Authorization: Bearer <supabase_access_token>`.

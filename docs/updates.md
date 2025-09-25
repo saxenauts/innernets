@@ -3,6 +3,7 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-09-25 — Auth UX hardening: Login/SignUp now surface Supabase error messages (e.g., invalid credentials, email not confirmed) and stop falling back to mock auth when Supabase env vars are present. This prevents navigating without a JWT and spamming the backend with 401s on `/streams*`. (ref: frontend/src/pages/Login.tsx, frontend/src/pages/SignUp.tsx)
 - 2025-08-29 — Fixed external link clicks on Stream page by removing JS `window.open` handlers and container-level `onClick`. Links now rely on native anchor behavior with `target="_blank"` + `rel="noopener noreferrer"`, ensuring consistent new-tab opening across browsers and blockers. (ref: frontend/src/components/ItemCard.tsx)
 - 2025-08-29 — Hardened StreamView link normalization: accept `url|href|link`, add `https://` for `www.` or schemeless links, and expose a dev debug flag `window.__IN_DEBUG_LINKS = true` to log raw vs normalized links. Also add data attributes to ItemCard for quick DOM inspection. (ref: frontend/src/pages/StreamView.tsx, frontend/src/components/ItemCard.tsx)
 - 2025-08-29 — Backend: fix for missing links in `GET /streams/:id/runs` — clusters were grouped before links were attached, so API returned empty `links`. Now links are joined via explicit FK `urls:urls!curation_cluster_links_url_id_fkey(...)` and attached prior to grouping. Removed metrics-based fallback to keep a single source of truth. (ref: backend/src/app/repositories/curations_repo.py)
@@ -116,3 +117,9 @@ Guidelines
 ### Todo
 - Add unit tests for dispatcher selection and Surfer client error handling.
 - Add API endpoint to expose Surfer job status/log URLs per run for debugging (optional).
+
+## 2025-09-25 — Remix Upgrade (Markdown bodies)
+- Planner prompt now returns both `instruction` and `context` (task-first, XML-tagged) for the Surfer agent.
+- Remixer prompt redesigned (task-first, XML-tagged) to produce rich markdown bodies (`body_md`) and explicit links; quantity unconstrained.
+- Added DB column `curation_clusters.body_md` (migration 0004) and updated API responses to include `body_md`.
+- Frontend renders markdown via `react-markdown` and shows links as chips.

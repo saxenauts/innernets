@@ -22,7 +22,9 @@
 - Surfaces: use `card-surface` or `rounded-xl border bg-card ...` with small shadows.
 - Interactive: `Button`, `Input`, `Select` use the same token-bound classes for a consistent look.
 
-### Links
+### Content & Links
+- ItemCard renders markdown bodies (`body_md`) via `react-markdown` when available; otherwise falls back to the legacy `hook` text.
+- Keep markdown simple: paragraphs, bold, and short lists. Inline links are not used in the body; anchors are rendered as chips below.
 - Prefer native anchors for external URLs. Use `href`, `target="_blank"`, and `rel="noopener noreferrer"`.
 - Do not use `window.open` in click handlers for normal links; it can be blocked by popup settings and interferes with middle/cmd-click semantics.
 - Avoid parent container `onClick` that hijacks link clicks. Let anchors handle navigation.
@@ -34,10 +36,10 @@
 - Avoid translucent surfaces beneath overlays to prevent bleed-through.
 
 ## Flows
-- Login (`/`): Supabase password grant (Vite env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → onboarding. Falls back to mock in dev if env missing.
+- Login (`/`): Supabase password grant (Vite env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → onboarding. If Supabase env is present but the request fails, the page surfaces the error and does not proceed without a JWT. Falls back to mock only if env is missing.
 - Onboarding (`/onboarding`): Create Stream via `POST /streams` (fields: `mission`, `sources`, `cadence`); navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
 - Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; falls back to mock + saved mission if API unavailable.
-- StreamView (`/streams/:id`): shows a reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Each run includes `curations` with `links` resolved by backend join (`curation_cluster_links.url_id → urls(id)`). Edit stream (mission, sources, cadence) and Delete stream actions are available; “Run Now” triggers `POST /streams/:id/run`.
+- StreamView (`/streams/:id`): shows a reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Each run includes `curations` with `body_md` for rich text and `links` resolved by backend join (`curation_cluster_links.url_id → urls(id)`). Edit stream (mission, sources, cadence) and Delete stream actions are available; “Run Now” triggers `POST /streams/:id/run`.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).

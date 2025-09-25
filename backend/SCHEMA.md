@@ -52,7 +52,8 @@ Entities
   - id: uuid (PK)
   - run_id: uuid (FK curation_runs.id)
   - title: text
-  - hook: text
+  - hook: text (deprecated; short teaser for back-compat)
+  - body_md: text (rich markdown body from remixer)
   - position: int
 
 - curation_cluster_links
@@ -70,3 +71,4 @@ Notes
 Change Log
 - 2025-08-26 — Minimalized schema to `profiles` only; added migration 0001.
 - 2025-08-29 — Added streams, urls registry, and curations tables; migration 0003.
+- 2025-09-25 — Added `body_md` to `curation_clusters` for rich markdown content; migration 0004.
