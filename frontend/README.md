@@ -32,3 +32,7 @@ Streams integration
 Testing
 - Run tests: `npm run test`
 - What’s covered: auth gating (Protected), login/sign-up flows (including confirmation-required path), API error banners on Streams/StreamView, and ItemCard link rendering.
+
+Auth sessions & idle behavior
+- supabase-js auto-refreshes sessions. After a long idle or when a tab is backgrounded or the device sleeps, browsers can throttle timers; the first API call on return may briefly use an expired access token and receive a 401 before the library refreshes in the background. A reload or a moment later requests succeed.
+- This is expected in SPA setups. Options if needed later: trigger a session check on `visibilitychange` (tab focus) or move to a backend-managed cookie session to eliminate transient 401s.

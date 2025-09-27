@@ -89,6 +89,10 @@ Notes
 - Dev flow: obtain a Supabase access token (via SignUp/Login pages or the dev token script) and store it client‑side. The API receives the token in the `Authorization` header.
 - Backend verifies tokens with `SUPABASE_JWT_SECRET` and enforces audience `authenticated` (configurable).
 
+Notes (SPA idle behavior)
+- The frontend uses `@supabase/supabase-js` with session persistence and auto refresh. After long idles, backgrounded tabs, or device sleep, browsers may throttle timers; the first request after resume can briefly 401 if the access token expired and the refresh hasn’t completed yet. Subsequent requests succeed once the library refreshes the session.
+- Mitigations (optional): trigger a session check on `visibilitychange` or retry once on 401. Alternative architecture: move to a backend-managed cookie session (BFF) to eliminate transient 401s.
+
 ## Data Flow (High Level)
 1. User creates a Stream from Onboarding (`mission`, optional `sources`, `cadence`).
 2. Backend stores the Stream and creates a user‑owned Schedule with `meta.stream_id` and `meta.agent='surfer_v1'`.

@@ -128,6 +128,7 @@ Already covered (no action):
 - [x] Ensure all API calls attach `Authorization` consistently; centralize base URL + auth injection (already in `lib/api.ts`, keep).
 - [x] Harden error UX on Login/SignUp; add a minimal banner for backend 401/5xx in Streams/StreamView.
 - [x] Add auth tests: session gating (Protected), login/sign-up flows (confirmation disabled/enabled), Streams/StreamView 401 banners.
+ - Deferred: consider backend-managed cookie sessions (BFF) to eliminate transient 401s after long idle in SPA flows.
 
 ## Frontend — Streams & Runs UX
 - [ ] Verify infinite scroll correctness with real `/streams/{id}/runs`; add tests for cursoring and "Load more" fallback.

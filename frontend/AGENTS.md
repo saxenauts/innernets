@@ -44,6 +44,7 @@
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).
 - Keep changes small and token-driven; avoid ad-hoc colors.
+- Auth sessions: supabase-js persists and refreshes sessions. After a long idle/background tab, the first request can 401 until refresh completes, then recover. This is expected for SPA flows; consider a backend cookie session later if zero transient 401s is a requirement.
 
 ## Environment
 - Create `frontend/.env.local` with:
