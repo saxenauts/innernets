@@ -4,29 +4,25 @@ import { Button } from '../components/ui/button';
 import { Select } from '../components/ui/select';
 import { api } from '../lib/api';
 
-const MISSION_KEY = 'in_onboarding_mission';
-const SOURCES_KEY = 'in_onboarding_sources';
-const CADENCE_KEY = 'in_onboarding_cadence';
+// No dev fallback: always use API
 
 export default function Onboarding() {
   // Start from defaults; do not prefill from previous local values
   const [mission, setMission] = useState<string>('');
   const [sources, setSources] = useState<string>('');
   const [cadence, setCadence] = useState<string>('weekly');
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     try {
+      setError(null);
       const body = { mission: mission.trim(), sources: sources.trim() || undefined, cadence };
       const created = await api.post<{ id: string }>('/streams', body);
       navigate(`/streams/${encodeURIComponent(created.id)}`);
-    } catch (err) {
-      // Fallback to local storage if API unavailable
-      localStorage.setItem(MISSION_KEY, mission.trim());
-      localStorage.setItem(SOURCES_KEY, sources.trim());
-      localStorage.setItem(CADENCE_KEY, cadence);
-      navigate('/streams');
+    } catch (err: any) {
+      setError('Failed to create stream. Please sign in again or try later.');
     }
   };
 
@@ -35,6 +31,9 @@ export default function Onboarding() {
       <div className="mx-auto max-w-2xl card-surface p-6">
         <h2 className="text-3xl font-semibold tracking-tight mb-1">Set your first Stream</h2>
         <p className="text-muted-foreground mb-6">Name your mission and cadence. Hint sources inline (e.g., “favor arXiv; avoid listicles”).</p>
+        {error && (
+          <div role="alert" className="mb-4 rounded-lg border bg-red-50 px-4 py-3 text-red-900 shadow-sm">{error}</div>
+        )}
         <form className="grid gap-5" onSubmit={onSubmit}>
           <label htmlFor="mission">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Mission</div>

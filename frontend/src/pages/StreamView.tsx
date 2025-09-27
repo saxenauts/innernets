@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { streams } from '../mocks/mock-data';
 import ItemCard from '../components/ItemCard';
 import { api } from '../lib/api';
 import { Button } from '../components/ui/button';
@@ -30,14 +29,6 @@ export default function StreamView() {
     let cancelled = false;
     setMetaLoaded(false);
     if (!id) return;
-    if (id === 'user-mission') {
-      const desc = localStorage.getItem('in_onboarding_mission') || 'Your saved mission';
-      if (!cancelled) {
-        setMeta({ name: 'Your Mission', description: desc });
-        setMetaLoaded(true);
-      }
-      return;
-    }
     (async () => {
       try {
         const s = await api.get<any>(`/streams/${encodeURIComponent(id)}`);
@@ -60,7 +51,7 @@ export default function StreamView() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!id || id === 'user-mission') return;
+      if (!id) return;
       try {
         const page = await api.get<RunsRes>(`/streams/${encodeURIComponent(id)}/runs?limit=5`);
         if (!cancelled) {
@@ -81,7 +72,7 @@ export default function StreamView() {
   }, [id]);
 
   const runNow = async () => {
-    if (!id || id === 'user-mission') return;
+    if (!id) return;
     setStatus('queued');
     try {
       await api.post(`/streams/${encodeURIComponent(id)}/run`);

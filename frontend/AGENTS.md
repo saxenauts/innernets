@@ -36,10 +36,10 @@
 - Avoid translucent surfaces beneath overlays to prevent bleed-through.
 
 ## Flows
-- Login (`/`): uses `@supabase/supabase-js` (`signInWithPassword`). On success, navigates to Streams. If Supabase env is present but sign-in fails, the page surfaces the error and does not proceed. Falls back to a mock dev-only flow if env is missing.
+- Login (`/`): uses `@supabase/supabase-js` (`signInWithPassword`). On success, navigates to Streams. If sign-in fails, the page surfaces the error and does not proceed.
 - Onboarding (`/onboarding`): Create Stream via `POST /streams` (fields: `mission`, `sources`, `cadence`); navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
-- Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; in dev it may fall back to mock data if API is unavailable. In staging/prod, an inline error banner is shown on 401/5xx.
-- StreamView (`/streams/:id`): reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). In dev, may fall back minimally; in staging/prod, shows an error banner on 401/5xx. Edit/Delete and “Run Now” are available.
+- Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; shows an inline error banner on 401/5xx.
+- StreamView (`/streams/:id`): reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Shows an error banner on 401/5xx. Edit/Delete and “Run Now” are available.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).

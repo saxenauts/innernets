@@ -1,19 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import StreamCard from '../components/StreamCard';
-import { streams as baseStreams, type Stream } from '../mocks/mock-data';
+type Stream = { id: string; name: string; description: string; items: any[] };
 import { api } from '../lib/api';
-
-function fromOnboarding(): Stream | null {
-  const mission = localStorage.getItem('in_onboarding_mission');
-  if (!mission) return null;
-  return {
-    id: 'user-mission',
-    name: 'Your Mission',
-    description: mission,
-    items: []
-  };
-}
 
 export default function Streams() {
   const [list, setList] = useState<Stream[]>([]);
@@ -32,10 +21,7 @@ export default function Streams() {
       } catch (e: any) {
         if (!cancelled) {
           setError('Failed to load streams. Please sign in again or try later.');
-          if (import.meta.env.DEV) {
-            const fallback: Stream[] = [fromOnboarding(), ...baseStreams].filter(Boolean) as Stream[];
-            setList(fallback);
-          }
+          setList([]);
         }
       } finally {
         if (!cancelled) setLoading(false);

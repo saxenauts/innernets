@@ -15,7 +15,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const KEY = 'in_authed_user'; // dev fallback only
+// No dev fallback: Supabase is required
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Session-driven state when Supabase is enabled
@@ -23,19 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState<string | undefined>(undefined);
   const [ready, setReady] = useState<boolean>(!SUPABASE_ENABLED);
 
-  // Dev/test fallback when Supabase env is not configured
   useEffect(() => {
     if (!SUPABASE_ENABLED) {
-      try {
-        const raw = localStorage.getItem(KEY);
-        if (raw) {
-          const e = (JSON.parse(raw).email as string) || undefined;
-          setEmail(e);
-          setAuthed(!!e);
-        }
-      } catch {
-        // ignore
-      }
+      // Auth not configured; remain logged out but mark ready so UI can render
+      setEmail(undefined);
+      setAuthed(false);
       setReady(true);
       return;
     }
@@ -60,37 +52,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (!SUPABASE_ENABLED) {
-      // dev fallback only
-      setEmail(email);
-      setAuthed(true);
-      localStorage.setItem(KEY, JSON.stringify({ email }));
-      return;
-    }
+    if (!SUPABASE_ENABLED) throw new Error('Supabase auth is not configured');
     const { error } = await supabase!.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message || 'Sign in failed');
   };
 
   const signUp = async (email: string, password: string): Promise<SignUpResult> => {
-    if (!SUPABASE_ENABLED) {
-      // dev fallback only
-      setEmail(email);
-      setAuthed(true);
-      localStorage.setItem(KEY, JSON.stringify({ email }));
-      return { hasSession: true };
-    }
+    if (!SUPABASE_ENABLED) throw new Error('Supabase auth is not configured');
     const { data, error } = await supabase!.auth.signUp({ email, password });
     if (error) throw new Error(error.message || 'Sign up failed');
     return { hasSession: !!data.session };
   };
 
   const logout = async () => {
-    if (SUPABASE_ENABLED) {
-      await supabase!.auth.signOut();
-    }
+    if (SUPABASE_ENABLED) await supabase!.auth.signOut();
     setEmail(undefined);
     setAuthed(false);
-    localStorage.removeItem(KEY);
   };
 
   const value = useMemo<AuthContextType>(() => ({
