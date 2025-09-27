@@ -12,9 +12,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["vitest/importMeta"]
+    "types": ["vite/client", "vitest", "vitest/globals", "vitest/importMeta"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
-

@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from '../components/ui/dialog';
 import { Select } from '../components/ui/select';
 
-type ApiCuration = { title: string; hook: string; links: { url: string; title?: string; domain?: string }[]; position: number };
+type ApiCuration = { title: string; hook: string; body_md?: string; links: { url: string; title?: string; domain?: string }[]; position: number };
 type FeedRun = { id: string; started_at: string | null; finished_at?: string | null; run_at?: string | null; curations: ApiCuration[] };
 type RunsRes = { runs: FeedRun[]; next_cursor?: string | null };
 
@@ -230,7 +230,7 @@ export default function StreamView() {
               </label>
               <label htmlFor="sources">
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Sources (optional)</div>
-                <textarea id="sources" rows={3} value={streamInfo?.sources || ''} onChange={(e) => setStreamInfo((p) => ({ ...(p || {}), sources: e.target.value }))}
+                <textarea id="sources" rows={3} value={streamInfo?.sources || ''} onChange={(e) => setStreamInfo((p) => ({ ...(p || { mission: '' }), sources: e.target.value }))}
                   className="flex min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
               </label>
               <label htmlFor="cadence">
@@ -238,7 +238,7 @@ export default function StreamView() {
                 <Select
                   id="cadence"
                   value={streamInfo?.cadence || 'weekly'}
-                  onValueChange={(v) => setStreamInfo((p) => ({ ...(p || {}), cadence: v }))}
+                  onValueChange={(v) => setStreamInfo((p) => ({ ...(p || { mission: '' }), cadence: v }))}
                   options={[
                     { value: 'daily', label: 'Daily' },
                     { value: '3xweek', label: '3× Week' },
