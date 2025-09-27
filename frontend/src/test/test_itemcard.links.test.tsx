@@ -15,7 +15,7 @@ describe('ItemCard links', () => {
     };
     render(<ItemCard item={item as any} />);
     const titleLink = screen.getByRole('link', { name: /example title/i });
-    expect(titleLink).toHaveAttribute('href', 'https://example.com/');
+    expect(titleLink).toHaveAttribute('href', 'https://example.com');
     expect(titleLink).toHaveAttribute('target', '_blank');
   });
 
@@ -40,8 +40,7 @@ describe('ItemCard links', () => {
       ],
     };
     render(<ItemCard item={item as any} />);
-    expect(screen.getByRole('link', { name: 'A' })).toHaveAttribute('href', 'https://a.example/');
-    expect(screen.getByRole('link', { name: 'B' })).toHaveAttribute('href', 'https://b.example/');
+    expect(screen.getByRole('link', { name: 'A' })).toHaveAttribute('href', 'https://a.example');
+    expect(screen.getByRole('link', { name: 'B' })).toHaveAttribute('href', 'https://b.example');
   });
 });
-

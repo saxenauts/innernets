@@ -124,9 +124,10 @@ Already covered (no action):
 - [x] Worker enqueue/claim/execute basics.
 
 ## Frontend — Auth & API
-- [ ] Replace manual password grant with `@supabase/supabase-js` to handle token refresh and expiry; wrap in an Auth service.
-- [ ] Ensure all API calls attach `Authorization` consistently; centralize base URL + auth injection (already in `lib/api.ts`, keep).
-- [ ] Harden error UX on Login/SignUp (already improved); add a minimal banner for backend 401/5xx in Streams/StreamView.
+- [x] Replace manual password grant with `@supabase/supabase-js` to handle token refresh and expiry; wrap in an Auth service.
+- [x] Ensure all API calls attach `Authorization` consistently; centralize base URL + auth injection (already in `lib/api.ts`, keep).
+- [x] Harden error UX on Login/SignUp; add a minimal banner for backend 401/5xx in Streams/StreamView.
+- [x] Add auth tests: session gating (Protected), login/sign-up flows (confirmation disabled/enabled), Streams/StreamView 401 banners.
 
 ## Frontend — Streams & Runs UX
 - [ ] Verify infinite scroll correctness with real `/streams/{id}/runs`; add tests for cursoring and "Load more" fallback.

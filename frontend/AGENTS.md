@@ -11,7 +11,7 @@
 
 - `npm run build` — type-check + build.
 - `npm run preview` — serve the build.
-- `npm run test` — unit tests (jsdom).
+- `npm run test` — unit tests (jsdom). Auth tests cover session gating (Protected), login/sign-up flows, and error banners on Streams.
 
 ## Theming
 - Edit tokens in `src/styles/globals.css` under `:root` (e.g., `--background`, `--foreground`, `--primary`, `--radius`).

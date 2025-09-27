@@ -28,3 +28,7 @@ Streams integration
 - Streams list → `GET /streams`.
 - Stream view → `GET /streams/:id/latest` and a “Run Now” button performs `POST /streams/:id/run`.
 - Curations render with markdown bodies when available (`body_md`), using `react-markdown`. Links are shown as chips beneath each item.
+
+Testing
+- Run tests: `npm run test`
+- What’s covered: auth gating (Protected), login/sign-up flows (including confirmation-required path), API error banners on Streams/StreamView, and ItemCard link rendering.
