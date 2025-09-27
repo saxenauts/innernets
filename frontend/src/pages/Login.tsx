@@ -10,51 +10,17 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signIn } = useAuth();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const em = email.trim();
     if (!em) return;
     try {
-      // Try Supabase password grant (dev)
-      const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-      const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        // fallback to mock auth if env not present
-        login(em);
-        navigate('/streams');
-        return;
-      }
       setError(null);
-      const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          // Some Supabase deployments require Authorization header mirroring apikey
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ email: em, password }),
-      });
-      if (!res.ok) {
-        let detail = `Supabase login failed: ${res.status}`;
-        try {
-          const j = await res.json();
-          if (j?.error_description) detail = j.error_description;
-          else if (j?.msg) detail = j.msg;
-          else if (j?.error) detail = `${j.error}: ${j?.error_description || j?.message || ''}`.trim();
-        } catch {}
-        setError(detail || `Supabase login failed (${res.status})`);
-        return;
-      }
-      const data = await res.json();
-      const token = data?.access_token as string | undefined;
-      if (!token) throw new Error('No access_token');
-      login(em, token);
+      await signIn(em, password);
       navigate('/streams');
     } catch (err) {
-      // Surface the error when Supabase is configured so we don't proceed without a token
       const msg = err instanceof Error ? err.message : 'Login failed';
       setError(msg);
     }

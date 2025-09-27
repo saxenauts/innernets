@@ -9,49 +9,21 @@ export default function SignUp() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signUp } = useAuth();
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const em = email.trim();
     if (!em) return;
     try {
-      const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
-      const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        // fallback to mock sign-up
-        login(em);
-        navigate('/onboarding');
-        return;
-      }
       setError(null);
-      const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ email: em, password }),
-      });
-      if (!res.ok) {
-        let detail = `Supabase signup failed: ${res.status}`;
-        try {
-          const j = await res.json();
-          if (j?.error_description) detail = j.error_description;
-          else if (j?.msg) detail = j.msg;
-          else if (j?.error) detail = `${j.error}: ${j?.error_description || j?.message || ''}`.trim();
-        } catch {}
-        setError(detail || `Supabase signup failed (${res.status})`);
-        return;
+      const res = await signUp(em, password);
+      if (res.hasSession) {
+        navigate('/onboarding');
+      } else {
+        setError('Check your email to confirm your account, then sign in.');
       }
-      const data = await res.json();
-      const token = data?.access_token as string | undefined;
-      // Some deployments require email confirmation and may not return a token.
-      login(em, token);
-      navigate('/onboarding');
     } catch (err) {
-      // Surface the error when Supabase is configured so we don't proceed without a token
       const msg = err instanceof Error ? err.message : 'Sign up failed';
       setError(msg);
     }

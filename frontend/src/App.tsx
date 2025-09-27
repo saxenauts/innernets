@@ -8,7 +8,8 @@ import StreamView from './pages/StreamView';
 import { AuthProvider, useAuth } from './state/auth';
 
 function Protected({ children }: { children: JSX.Element }) {
-  const { authed } = useAuth();
+  const { authed, ready } = useAuth();
+  if (!ready) return null;
   if (!authed) return <Navigate to="/" replace />;
   return children;
 }

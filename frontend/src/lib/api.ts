@@ -1,25 +1,28 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
-const BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
-const TOKEN_KEY = 'in_test_bearer';
+import { supabase, SUPABASE_ENABLED } from './supabase';
 
-function authHeader() {
-  const raw = localStorage.getItem(TOKEN_KEY);
-  if (!raw) return {} as Record<string, string>;
+const BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
+
+async function authHeader(): Promise<Record<string, string>> {
+  if (!SUPABASE_ENABLED) return {};
   try {
-    const token = JSON.parse(raw).token as string;
-    if (token) return { Authorization: `Bearer ${token}` };
-  } catch {}
-  return {} as Record<string, string>;
+    const { data } = await supabase!.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
 }
 
 async function request<T>(method: HttpMethod, path: string, body?: any): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(await authHeader()),
+  };
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeader(),
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -37,11 +40,3 @@ export const api = {
   put: <T>(path: string, body?: any) => request<T>('PUT', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
 };
-
-export function setDevToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify({ token }));
-}
-
-export function clearDevToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}

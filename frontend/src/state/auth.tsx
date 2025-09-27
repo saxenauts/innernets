@@ -1,44 +1,106 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { supabase, SUPABASE_ENABLED } from '../lib/supabase';
+
+type SignUpResult = { hasSession: boolean };
 
 type AuthContextType = {
   authed: boolean;
-  login: (email: string, token?: string) => void;
-  logout: () => void;
   userEmail?: string;
+  ready: boolean;
+  // Standard methods
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const KEY = 'in_authed_user';
-const TOKEN_KEY = 'in_test_bearer';
+const KEY = 'in_authed_user'; // dev fallback only
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [email, setEmail] = useState<string | undefined>(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return undefined;
-      return (JSON.parse(raw).email as string) || undefined;
-    } catch {
-      return undefined;
+  // Session-driven state when Supabase is enabled
+  const [authed, setAuthed] = useState<boolean>(false);
+  const [email, setEmail] = useState<string | undefined>(undefined);
+  const [ready, setReady] = useState<boolean>(!SUPABASE_ENABLED);
+
+  // Dev/test fallback when Supabase env is not configured
+  useEffect(() => {
+    if (!SUPABASE_ENABLED) {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (raw) {
+          const e = (JSON.parse(raw).email as string) || undefined;
+          setEmail(e);
+          setAuthed(!!e);
+        }
+      } catch {
+        // ignore
+      }
+      setReady(true);
+      return;
     }
-  });
+    // Supabase session bootstrap
+    let mounted = true;
+    (async () => {
+      const { data } = await supabase!.auth.getSession();
+      if (!mounted) return;
+      const s = data.session;
+      setAuthed(!!s?.access_token);
+      setEmail(s?.user?.email || undefined);
+      setReady(true);
+    })();
+    const { data: sub } = supabase!.auth.onAuthStateChange((_event, session) => {
+      setAuthed(!!session?.access_token);
+      setEmail(session?.user?.email || undefined);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    if (!SUPABASE_ENABLED) {
+      // dev fallback only
+      setEmail(email);
+      setAuthed(true);
+      localStorage.setItem(KEY, JSON.stringify({ email }));
+      return;
+    }
+    const { error } = await supabase!.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Sign in failed');
+  };
+
+  const signUp = async (email: string, password: string): Promise<SignUpResult> => {
+    if (!SUPABASE_ENABLED) {
+      // dev fallback only
+      setEmail(email);
+      setAuthed(true);
+      localStorage.setItem(KEY, JSON.stringify({ email }));
+      return { hasSession: true };
+    }
+    const { data, error } = await supabase!.auth.signUp({ email, password });
+    if (error) throw new Error(error.message || 'Sign up failed');
+    return { hasSession: !!data.session };
+  };
+
+  const logout = async () => {
+    if (SUPABASE_ENABLED) {
+      await supabase!.auth.signOut();
+    }
+    setEmail(undefined);
+    setAuthed(false);
+    localStorage.removeItem(KEY);
+  };
 
   const value = useMemo<AuthContextType>(() => ({
-    authed: !!email,
+    authed,
     userEmail: email,
-    login: (e: string, token?: string) => {
-      setEmail(e);
-      localStorage.setItem(KEY, JSON.stringify({ email: e }));
-      if (token && token.trim()) {
-        localStorage.setItem(TOKEN_KEY, JSON.stringify({ token: token.trim() }));
-      }
-    },
-    logout: () => {
-      setEmail(undefined);
-      localStorage.removeItem(KEY);
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  }), [email]);
+    ready,
+    signIn,
+    signUp,
+    logout,
+  }), [authed, email, ready]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

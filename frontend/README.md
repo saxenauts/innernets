@@ -18,9 +18,10 @@ Notes
 - The Supabase anon key is intended for client-side use (it enforces RLS on the server). Do not put service role keys here.
 - You can also use `.env`, `.env.development`, or `.env.local` depending on your workflow. `.env.local` is recommended for machine-specific values.
 
-Auth flow (dev)
-- Login page performs a Supabase password grant using `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` to obtain a short‑lived access token.
-- The access token is stored in `localStorage` and sent as `Authorization: Bearer <token>` to the backend API.
+Auth flow
+- Uses `@supabase/supabase-js` for session management. Login/SignUp call `supabase.auth.signInWithPassword`/`signUp`.
+- The session is persisted by the library; API calls read the current access token and attach `Authorization: Bearer <token>` automatically.
+- If email confirmation is required, SignUp shows a “Check your email” message and does not navigate to protected routes until confirmed/sign-in.
 
 Streams integration
 - Onboarding (Create Stream) → `POST /streams` on the backend, then navigates to `/streams/:id`.

@@ -36,10 +36,10 @@
 - Avoid translucent surfaces beneath overlays to prevent bleed-through.
 
 ## Flows
-- Login (`/`): Supabase password grant (Vite env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) → onboarding. If Supabase env is present but the request fails, the page surfaces the error and does not proceed without a JWT. Falls back to mock only if env is missing.
+- Login (`/`): uses `@supabase/supabase-js` (`signInWithPassword`). On success, navigates to Streams. If Supabase env is present but sign-in fails, the page surfaces the error and does not proceed. Falls back to a mock dev-only flow if env is missing.
 - Onboarding (`/onboarding`): Create Stream via `POST /streams` (fields: `mission`, `sources`, `cadence`); navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
-- Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; falls back to mock + saved mission if API unavailable.
-- StreamView (`/streams/:id`): shows a reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Each run includes `curations` with `body_md` for rich text and `links` resolved by backend join (`curation_cluster_links.url_id → urls(id)`). Edit stream (mission, sources, cadence) and Delete stream actions are available; “Run Now” triggers `POST /streams/:id/run`.
+- Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; in dev it may fall back to mock data if API is unavailable. In staging/prod, an inline error banner is shown on 401/5xx.
+- StreamView (`/streams/:id`): reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). In dev, may fall back minimally; in staging/prod, shows an error banner on 401/5xx. Edit/Delete and “Run Now” are available.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).

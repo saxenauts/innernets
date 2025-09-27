@@ -24,6 +24,7 @@ export default function StreamView() {
   const [editing, setEditing] = useState(false);
   const [metaLoaded, setMetaLoaded] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,8 +45,11 @@ export default function StreamView() {
           setMeta({ name: s.mission?.slice(0, 80) || 'Stream', description: s.mission || '' });
           setStreamInfo({ mission: s.mission || '', sources: s.sources_hints || '', cadence: s.cadence || 'weekly' });
         }
-      } catch {
-        if (!cancelled) setMeta(null);
+      } catch (e: any) {
+        if (!cancelled) {
+          setMeta(null);
+          setError('Failed to load stream. Please sign in again or try later.');
+        }
       } finally {
         if (!cancelled) setMetaLoaded(true);
       }
@@ -64,8 +68,9 @@ export default function StreamView() {
           setCursor(page.next_cursor || null);
           setHasMore(!!(page.runs && page.runs.length > 0 && page.next_cursor));
         }
-      } catch {
+      } catch (e: any) {
         if (!cancelled) {
+          setError('Failed to load runs. Please sign in again or try later.');
           setRuns([]);
           setCursor(null);
           setHasMore(false);
@@ -212,6 +217,7 @@ export default function StreamView() {
             )}
           </div>
           {status && <div className="text-sm text-muted-foreground mt-2">Status: {status}</div>}
+          {error && <div role="alert" className="text-sm text-red-600 mt-2">{error}</div>}
         </div>
         <Dialog open={editing} onOpenChange={setEditing}>
           <DialogHeader title="Edit Stream" description="Update mission, sources, and cadence." />

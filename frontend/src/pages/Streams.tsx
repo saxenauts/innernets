@@ -18,6 +18,7 @@ function fromOnboarding(): Stream | null {
 export default function Streams() {
   const [list, setList] = useState<Stream[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const location = useLocation() as any;
   const navigate = useNavigate();
@@ -28,9 +29,14 @@ export default function Streams() {
         const res = await api.get<any[]>('/streams');
         const mapped: Stream[] = res.map((r) => ({ id: r.id, name: r.mission?.slice(0, 60) || 'Stream', description: r.mission || '', items: [] }));
         if (!cancelled) setList(mapped);
-      } catch {
-        const fallback: Stream[] = [fromOnboarding(), ...baseStreams].filter(Boolean) as Stream[];
-        if (!cancelled) setList(fallback);
+      } catch (e: any) {
+        if (!cancelled) {
+          setError('Failed to load streams. Please sign in again or try later.');
+          if (import.meta.env.DEV) {
+            const fallback: Stream[] = [fromOnboarding(), ...baseStreams].filter(Boolean) as Stream[];
+            setList(fallback);
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,6 +60,11 @@ export default function Streams() {
       {toast && (
         <div role="alert" className="mb-4 rounded-lg border bg-green-50 px-4 py-3 text-green-900 shadow-sm">
           {toast}
+        </div>
+      )}
+      {error && (
+        <div role="alert" className="mb-4 rounded-lg border bg-red-50 px-4 py-3 text-red-900 shadow-sm">
+          {error}
         </div>
       )}
       <header className="mb-6">
