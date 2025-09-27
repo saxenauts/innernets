@@ -11,10 +11,15 @@ export function Dialog({ open, onOpenChange, children }: { open: boolean; onOpen
   }, [open, onOpenChange]);
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-[100]" aria-hidden={false}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-100 transition-opacity" onClick={() => onOpenChange(false)} />
       <div className="absolute inset-0 flex items-end sm:items-center justify-center p-4">
-        <div className="w-full sm:max-w-lg bg-[hsl(var(--card))] border rounded-xl shadow-xl transition-all duration-200 ease-out translate-y-0 opacity-100 sm:translate-y-0">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="w-full sm:max-w-lg bg-[hsl(var(--card))] border rounded-xl shadow-xl transition-all duration-200 ease-out translate-y-0 opacity-100 sm:translate-y-0"
+          tabIndex={-1}
+        >
           {children}
         </div>
       </div>
@@ -39,4 +44,3 @@ export function DialogBody({ children }: { children: React.ReactNode }) {
 export function DialogFooter({ children }: { children: React.ReactNode }) {
   return <div className="p-4 border-t flex justify-end gap-2">{children}</div>;
 }
-

@@ -131,9 +131,10 @@ Already covered (no action):
  - Deferred: consider backend-managed cookie sessions (BFF) to eliminate transient 401s after long idle in SPA flows.
 
 ## Frontend — Streams & Runs UX
-- [ ] Verify infinite scroll correctness with real `/streams/{id}/runs`; add tests for cursoring and "Load more" fallback.
-- [ ] Surface Surfer job/run status while waiting after "Run Now" (optimistic UI); poll latest endpoint briefly.
+- [x] Verify infinite scroll correctness with real `/streams/{id}/runs`; add tests for cursoring and "Load more" fallback. Added tests to guard duplicate fetches while `loadingMore` is true. (ref: frontend/src/test/test_streamview_pagination.tsx)
+- [x] Simplify "Run Now" UX: remove inline status text. Disable the button after enqueue and keep it disabled while a run is pending/in‑progress; re‑enable only after `/streams/:id/latest` reports a newer finished run. Show a simple hover tooltip on the disabled button (no extra inline UI). (ref: frontend/src/pages/StreamView.tsx, frontend/src/test/test_stream_run_gating.tsx)
 - [ ] Accessibility pass (ARIA roles on dialogs/menus, focus management, link semantics). Add a quick a11y checklist to `frontend/AGENTS.md`.
+  - Partial: Added `role="dialog"` and `aria-modal` to the dialog container. Focus management and menu roles deferred. (ref: frontend/src/components/ui/dialog.tsx)
 
 ## Frontend — Docs & Config
 - [ ] Frontend README: add a quick troubleshooting section (CORS, missing envs, 401 from backend).

@@ -17,7 +17,11 @@ export default function StreamView() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
-  const [status, setStatus] = useState<string | null>(null);
+  // Run gating: disable Run Now while a run is in progress or after enqueue until latest finishes
+  const [runDisabled, setRunDisabled] = useState<boolean>(false);
+  const [runHoverHint, setRunHoverHint] = useState<string | undefined>(undefined);
+  const baselineStartedAtRef = useRef<string | null>(null);
+  const runRequestedRef = useRef<boolean>(false);
   const [meta, setMeta] = useState<{ name: string; description: string } | null>(null);
   const [streamInfo, setStreamInfo] = useState<{ mission: string; sources?: string; cadence?: string } | null>(null);
   const [editing, setEditing] = useState(false);
@@ -71,14 +75,37 @@ export default function StreamView() {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Check latest run to initialize disabled state and establish baseline
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!id) return;
+      try {
+        const latest = await api.get<any>(`/streams/${encodeURIComponent(id)}/latest`);
+        if (cancelled) return;
+        const started = latest?.started_at || latest?.run_at || null;
+        const finished = latest?.finished_at || null;
+        baselineStartedAtRef.current = started;
+        // Disable button if there is a run without finished_at
+        const inProgress = Boolean(latest?.run_id && !finished);
+        setRunDisabled(inProgress);
+        setRunHoverHint(inProgress ? 'A run is in progress. Check back later.' : undefined);
+      } catch {
+        // best effort; leave as-is
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
   const runNow = async () => {
-    if (!id) return;
-    setStatus('queued');
+    if (!id || runDisabled) return;
     try {
       await api.post(`/streams/${encodeURIComponent(id)}/run`);
-      setStatus('queued');
+      runRequestedRef.current = true;
+      setRunDisabled(true);
+      setRunHoverHint('Run scheduled. Check back later.');
     } catch (e: any) {
-      setStatus(`error: ${e?.message || 'failed'}`);
+      setError(e?.message || 'Failed to run');
     }
   };
 
@@ -94,7 +121,7 @@ export default function StreamView() {
       setMeta({ name: streamInfo.mission.slice(0, 80) || 'Stream', description: streamInfo.mission });
       setEditing(false);
     } catch (e: any) {
-      setStatus(`error: ${e?.message || 'failed'}`);
+      setError(e?.message || 'Update failed');
     }
   };
 
@@ -107,7 +134,7 @@ export default function StreamView() {
       setEditing(false);
       navigate('/streams', { state: { toast: 'Stream deleted' } });
     } catch (e: any) {
-      setStatus(`error: ${e?.message || 'delete failed'}`);
+      setError(e?.message || 'Delete failed');
     }
   };
 
@@ -125,6 +152,66 @@ export default function StreamView() {
       setLoadingMore(false);
     }
   };
+
+  // Background poll latest while disabled to re-enable when the enqueued run completes
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    let timer: number | null = null;
+
+    async function checkLatest() {
+      try {
+        const latest = await api.get<any>(`/streams/${encodeURIComponent(id)}/latest`);
+        if (cancelled) return;
+        const started = latest?.started_at || latest?.run_at || null;
+        const finished = latest?.finished_at || null;
+
+        // If any run exists and has not finished, keep disabled
+        if (latest?.run_id && !finished) {
+          setRunDisabled(true);
+          setRunHoverHint('A run is in progress. Check back later.');
+          return;
+        }
+
+        // If we requested a run, only re-enable once a newer finished run appears
+        if (runRequestedRef.current) {
+          const baseline = baselineStartedAtRef.current;
+          if (started && finished && (!baseline || new Date(started) > new Date(baseline))) {
+            baselineStartedAtRef.current = started;
+            runRequestedRef.current = false;
+            setRunDisabled(false);
+            setRunHoverHint(undefined);
+            // Optionally refresh runs list to include the new run
+            try {
+              const page = await api.get<RunsRes>(`/streams/${encodeURIComponent(id)}/runs?limit=5`);
+              setRuns(page.runs || []);
+              setCursor(page.next_cursor || null);
+              setHasMore(!!(page.runs && page.runs.length > 0 && page.next_cursor));
+            } catch {
+              // ignore fetch error here
+            }
+          }
+          return;
+        }
+
+        // Not requested; and nothing in progress → ensure enabled
+        setRunDisabled(false);
+        setRunHoverHint(undefined);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (runDisabled || runRequestedRef.current) {
+      // Check immediately, then every few seconds
+      checkLatest();
+      timer = window.setInterval(checkLatest, 4000);
+    }
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [runDisabled, id]);
 
   // Normalize links coming from API to robustly handle minor schema/format drift.
   // Accepts url/href/link keys; adds https:// if missing; ignores malformed values.
@@ -202,12 +289,13 @@ export default function StreamView() {
             </div>
             {id !== 'user-mission' && (
               <div className="flex items-center gap-2">
-                <Button onClick={runNow}>Run Now</Button>
+                <span title={runDisabled ? (runHoverHint || 'Run scheduled. Check back later.') : ''}>
+                  <Button onClick={runNow} disabled={runDisabled} aria-disabled={runDisabled}>Run Now</Button>
+                </span>
                 <Button variant="ghost" aria-label="Stream options" title="Options" onClick={() => setEditing(true)}>⋯</Button>
               </div>
             )}
           </div>
-          {status && <div className="text-sm text-muted-foreground mt-2">Status: {status}</div>}
           {error && <div role="alert" className="text-sm text-red-600 mt-2">{error}</div>}
         </div>
         <Dialog open={editing} onOpenChange={setEditing}>

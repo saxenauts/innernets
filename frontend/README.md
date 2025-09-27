@@ -27,11 +27,12 @@ Streams integration
 - Onboarding (Create Stream) → `POST /streams` on the backend, then navigates to `/streams/:id`.
 - Streams list → `GET /streams`.
 - Stream view → `GET /streams/:id/latest` and a “Run Now” button performs `POST /streams/:id/run`.
+  - UX: no inline status text. The button disables after enqueue and remains disabled while a run is pending/in‑progress; it re‑enables when `/streams/:id/latest` reports a newer finished run. A simple hover tooltip on the disabled button explains that the run has been scheduled.
 - Curations render with markdown bodies when available (`body_md`), using `react-markdown`. Links are shown as chips beneath each item.
 
 Testing
 - Run tests: `npm run test`
-- What’s covered: auth gating (Protected), login/sign-up flows (including confirmation-required path), API error banners on Streams/StreamView, and ItemCard link rendering.
+- What’s covered: auth gating (Protected), login/sign-up flows (including confirmation-required path), API error banners on Streams/StreamView, ItemCard link rendering, StreamView pagination (“Load more”), and Run Now gating.
 
 Auth sessions & idle behavior
 - supabase-js auto-refreshes sessions. After a long idle or when a tab is backgrounded or the device sleeps, browsers can throttle timers; the first API call on return may briefly use an expired access token and receive a 401 before the library refreshes in the background. A reload or a moment later requests succeed.

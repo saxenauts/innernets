@@ -3,7 +3,7 @@
 ## What’s here
 - Pages: `Login`, `SignUp`, `Onboarding`, `Streams`, `StreamView`.
 - Components: `NavBar`, `StreamCard`, `ItemCard`, UI: `Button`, `Input`, `Badge`, `Select`.
-- State: `AuthProvider` (localStorage-backed).
+- State: `AuthProvider` (session-backed via `@supabase/supabase-js`).
 - Styles: `src/styles/globals.css` (Tailwind v4 + CSS variables).
 
 ## Commands
@@ -40,6 +40,7 @@
 - Onboarding (`/onboarding`): Create Stream via `POST /streams` (fields: `mission`, `sources`, `cadence`); navigate to `/streams/:id`. If API unavailable, falls back to localStorage for demo.
 - Streams (`/streams`): loads from `GET /streams` (active only) with loader skeleton; shows an inline error banner on 401/5xx.
 - StreamView (`/streams/:id`): reverse‑chronological feed via `GET /streams/:id/runs` (infinite scroll). Shows an error banner on 401/5xx. Edit/Delete and “Run Now” are available.
+  - "Run Now" behavior: no inline status text. Button disables after enqueue and remains disabled while a run is pending/in‑progress; it re‑enables only after `/streams/:id/latest` reports a newer finished run. A plain tooltip (title attribute) on hover explains "Run scheduled. Check back later." when disabled.
 
 ## Notes
 - No legacy classes remain (e.g., `.hero`, `.panel`, `.btn`).
