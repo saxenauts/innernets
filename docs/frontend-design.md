@@ -142,3 +142,4 @@ Patterns snapshot (from recent sources)
 - View Transitions API for state changes; skeletons instead of spinners.
 - Low-chroma palettes; accents used sparingly; neutral surfaces layered with hairline dividers.
 - Radix primitives for accessible overlays; minimal chrome; clear focus states.
+

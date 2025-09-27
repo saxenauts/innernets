@@ -72,3 +72,4 @@ Change Log
 - 2025-08-26 — Minimalized schema to `profiles` only; added migration 0001.
 - 2025-08-29 — Added streams, urls registry, and curations tables; migration 0003.
 - 2025-09-25 — Added `body_md` to `curation_clusters` for rich markdown content; migration 0004.
+

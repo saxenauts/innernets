@@ -57,15 +57,16 @@ Phase X — Operations
 
 Notes
 - Keep `docs/updates.md` in sync when tasks move between phases.
-- Keep `backend/SCHEMA.md` and `backend/AGENTS.md` updated with decisions.
+- Keep `docs/backend-schema.md` and `backend/AGENTS.md` updated with decisions.
 
- Profiles Milestone (minimal)
+Profiles Milestone (minimal)
 - [x] Add minimal `profiles` schema + RLS (migration 0001)
 - [x] Add Supabase runbook (link, apply, verify)
- - [x] API: add GET/PUT `/me/profile` (FastAPI)
- - [x] Auth: replace dev header with Supabase JWT verification
- - [ ] Frontend: wire profile view/edit — TODO
-- Prompt Refactor (new)
+- [x] API: add GET/PUT `/me/profile` (FastAPI)
+- [x] Auth: replace dev header with Supabase JWT verification
+- [ ] Frontend: wire profile view/edit — TODO
+
+Prompt Refactor (new)
 - [x] Centralize prompts with JSON Schema guidance for all functions
 - [x] Use consistent, minimal system prompts and parameterized user prompts
 - [x] Validate and self-correct patterns standardized across providers
@@ -73,7 +74,6 @@ Notes
 Status Summary
 - Done so far: backend DB scaffold, Supabase auth (profiles API), LLM adapter with structured outputs, scheduler ticker/worker with demo and in-app runtime.
 - Done so far: search step functions with prompts
-
 
 Streams & Frontend Integration (new)
 - [x] Add SQL: `streams`, `urls`, `curation_runs`, `curation_clusters`, `curation_cluster_links` (RLS)
@@ -85,3 +85,4 @@ Streams & Frontend Integration (new)
 - [ ] Frontend: add past runs view + auto-poll after Run Now
 - [ ] Token refresh (supabase-js) instead of raw fetch grant; handle expiry gracefully
 - [ ] Improve CORS configuration for different environments
+

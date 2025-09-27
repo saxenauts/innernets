@@ -1,6 +1,6 @@
-# Exa Integration Usage
+# Exa Integration Usage (Legacy/Optional)
 
-This backend integrates Exa (search engine for AIs) via the official Python SDK `exa-py`.
+This backend integrates Exa (search engine for AIs) via the official Python SDK `exa-py`. The default Streams agent is Surfer; the search-only Exa workflow is retained for legacy/testing.
 
 ## Install & Run
 
@@ -21,7 +21,7 @@ Workers call our thin wrapper around `exa-py` (no public HTTP routes):
 
 Contract & caps
 - Use the Python SDK signature (snake_case) and pass only documented fields.
-- Enforce caps per `docs/search-only-plan.md`:
+- Enforce caps per legacy plan:
   - `num_results ≤ 25` for `neural/auto`
   - `num_results ≤ 100` for `keyword`
 
@@ -41,7 +41,7 @@ Contract choice
 ## Cost & Guardrails
 
 - Exa includes `costDollars` in responses; our API forwards it as `provider_cost`.
-- Defaults encourage low cost per docs/search-only-plan.md.
+- Defaults encourage low cost.
 
 ### Pricing (simple)
 - Search requests (≤100 results):
@@ -62,6 +62,7 @@ Contract choice
 
 ## Example (Python)
 
+```
 from app.clients.exa_client import get_exa_client
 
 exa = get_exa_client()
@@ -76,6 +77,7 @@ print(first.get("title"), first.get("url"))
 
 res2 = exa.get_contents(urls=[first["url"]], text={"max_characters": 1500})
 print(len(res2.get("results") or []), "pages")
+```
 
 ---
 
@@ -99,3 +101,4 @@ Pricing-friendly defaults we use:
 - `401 Unauthorized`: ensure you pass a valid Supabase access token; the backend verifies with `SUPABASE_JWT_SECRET`.
 - `502 Exa error`: backend could not reach Exa or SDK raised. Check `EXA_API_KEY` and network access.
 - Validation errors on `numResults`: adjust per caps above.
+

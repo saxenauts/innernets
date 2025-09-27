@@ -8,6 +8,7 @@ import { TextareaHTMLAttributes } from 'react';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -25,6 +26,7 @@ export default function Login() {
         navigate('/streams');
         return;
       }
+      setError(null);
       const res = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
@@ -35,16 +37,26 @@ export default function Login() {
         },
         body: JSON.stringify({ email: em, password }),
       });
-      if (!res.ok) throw new Error(`Supabase login failed: ${res.status}`);
+      if (!res.ok) {
+        let detail = `Supabase login failed: ${res.status}`;
+        try {
+          const j = await res.json();
+          if (j?.error_description) detail = j.error_description;
+          else if (j?.msg) detail = j.msg;
+          else if (j?.error) detail = `${j.error}: ${j?.error_description || j?.message || ''}`.trim();
+        } catch {}
+        setError(detail || `Supabase login failed (${res.status})`);
+        return;
+      }
       const data = await res.json();
       const token = data?.access_token as string | undefined;
       if (!token) throw new Error('No access_token');
       login(em, token);
       navigate('/streams');
     } catch (err) {
-      // graceful fallback to mock auth
-      login(em);
-      navigate('/streams');
+      // Surface the error when Supabase is configured so we don't proceed without a token
+      const msg = err instanceof Error ? err.message : 'Login failed';
+      setError(msg);
     }
   };
 
@@ -53,6 +65,11 @@ export default function Login() {
       <div className="mx-auto max-w-lg card-surface p-6">
         <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
         <p className="text-muted-foreground">Sign in to start exploring Streams.</p>
+        {error ? (
+          <div role="alert" className="text-sm text-red-600 mt-3" aria-live="polite">
+            {error}
+          </div>
+        ) : null}
         <form className="grid gap-4" onSubmit={onSubmit}>
           <label>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Email</div>

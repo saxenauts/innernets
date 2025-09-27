@@ -27,7 +27,7 @@ Telemetry
 - Include minimal request metadata (no secrets, no full prompts unless explicitly enabled for debugging).
 
 Configuration
-- Global defaults from environment (see `backend/ENVIRONMENT.md`).
+- Global defaults from environment (see `docs/backend-environment.md`).
 - Per-request overrides allowed (model, temperature, etc.).
 - Allow mapping canonical model aliases to provider-specific deployments (e.g., `gpt-4o` → Azure deployment).
 
@@ -55,3 +55,4 @@ Search Steps (where schemas live)
   - ProposeFollowupsOut (3–6 follow-up queries)
   - ConsolidateOut (`curations` with `title`, `hook`, `link_ids`)
 - Prompts in `backend/src/app/llm/prompts.py` use double‑braced variables and are substituted programmatically.
+

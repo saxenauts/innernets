@@ -13,10 +13,16 @@ In dev, it can use `DEV_TEST_USER_TOKEN` to act on behalf of a test user.
 import os
 import time
 from typing import Dict, Any
+import logging
+import uuid
+import json
 
 from ..config import settings
 from .jobs import claim_jobs, start_run, finish_run, mark_done
 from .ticker import tick
+
+
+logger = logging.getLogger("scheduler")
 
 
 def run_once(handle_job) -> int:
@@ -25,15 +31,61 @@ def run_once(handle_job) -> int:
     if not jobs:
         return 0
     job = jobs[0]
+    trace_id = str(uuid.uuid4())
+    t0 = time.time()
     run = start_run(job["id"])  # start run record
     run_id = run["id"]
     try:
+        try:
+            logger.info(
+                json.dumps(
+                    {
+                        "event": "job.started",
+                        "trace_id": trace_id,
+                        "job_id": job.get("id"),
+                        "run_id": run_id,
+                        "user_id": job.get("user_id"),
+                        "schedule_id": job.get("schedule_id"),
+                        "agent": (job.get("payload") or {}).get("agent"),
+                    }
+                )
+            )
+        except Exception:
+            pass
         metrics: Dict[str, Any] = handle_job(job)
         finish_run(run_id, status="succeeded", metrics=metrics)
         mark_done(job["id"], success=True)
+        try:
+            logger.info(
+                json.dumps(
+                    {
+                        "event": "job.succeeded",
+                        "trace_id": trace_id,
+                        "job_id": job.get("id"),
+                        "run_id": run_id,
+                        "elapsed_ms": int((time.time() - t0) * 1000),
+                    }
+                )
+            )
+        except Exception:
+            pass
     except Exception as e:
         finish_run(run_id, status="failed", error={"message": str(e)})
         mark_done(job["id"], success=False, error={"message": str(e)})
+        try:
+            logger.error(
+                json.dumps(
+                    {
+                        "event": "job.failed",
+                        "trace_id": trace_id,
+                        "job_id": job.get("id"),
+                        "run_id": run_id,
+                        "error": str(e),
+                    }
+                )
+            )
+        except Exception:
+            pass
     return 1
 
 

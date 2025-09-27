@@ -1,3 +1,5 @@
+Status: Legacy — This document describes the earlier Exa-first, search-only MVP. The product now uses the Surfer agent as the default for Streams. Keep this for historical context and pricing notes. For the current system, see `docs/architecture-runs-scheduler.md` and `docs/integration.md`.
+
 Got it. Here’s a copy-pasteable doc that corrects the Exa pricing details, answers the “Contents \$1/1–100?” confusion, and locks the plan to a **two-step, search-only** loop with **Exa** as the sole provider.
 
 ---
@@ -136,4 +138,3 @@ Even at the upper case, we sit far under the **\$100/mo** ceiling.
 * One vendor, one API, simple math. **Search + contents** lets the LLM compose real hooks/reasons without a crawler.
 * Contents is **cheap** when you’re selective (**\$0.001/page**).
 * The two-step plan (3–4 queries each) keeps quality high while costs stay in the **\$11–\$20/mo** range for 10 daily streams—even at upper bounds.
-

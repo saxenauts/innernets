@@ -31,12 +31,13 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 - Env files: live in `backend/` (`.env.example`, `.env.dev`, `.env.prod`); create `backend/.env` for local runs.
 
 ## Specs & References
-- Scheduler design: `backend/SCHEDULER.md`
-- LLM Adapter spec: `backend/LLM_ADAPTER.md`
-- Environment & config: `backend/ENVIRONMENT.md`
-- Database schema (evolving): `backend/SCHEMA.md`
+- Scheduler design: `docs/backend-scheduler.md`
+- LLM Adapter spec: `docs/backend-llm-adapter.md`
+- Environment & config: `docs/backend-environment.md`
+- Database schema (evolving): `docs/backend-schema.md`
 - Service plan: `docs/search-only-plan.md`
 - Surfer Docker integration: `docs/surfer-docker-integration.md`, `docs/surfer-docker-service-api.md`
+ - Architecture overview: `docs/architecture-runs-scheduler.md`
 
 ## Data Model (overview; see SCHEMA.md)
 - Users: Supabase Auth users (canonical). Local `profiles` for app-specific fields.
@@ -117,7 +118,7 @@ Scope: Python backend for InnerNets. Starts with a search-based service driven b
 
 ## How to Contribute (docs-first)
 - Update the relevant spec in `backend/*` and the index in `AGENTS.md`.
-- Update `backend/SCHEMA.md` when data shapes change.
+- Update `docs/backend-schema.md` when data shapes change.
 - Log changes and move tasks in `docs/updates.md`.
 - Prompt architecture: adopt JSON Schema-guided prompts for all functions; centralize and refactor prompt templates after functions are stable.
 - Agents rule: return Pydantic models at boundaries (no plain dicts); define schemas alongside agents.

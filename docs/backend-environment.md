@@ -61,6 +61,18 @@ Local Setup (docs-first)
 - Create a real `backend/.env` locally by copying from `backend/.env.dev` and filling values: `cd backend && cp .env.dev .env`.
 - For shared dev, use a secure secret sharing method (1Password/Bitwarden).
 
+Staging defaults (recommended)
+- SCHEDULER_IN_APP=0 (API does not run an in-app worker thread)
+- Run a single external worker process (see Procfile)
+- SURFER_POLL_INTERVAL_S=30
+- SURFER_MAX_WAIT_S=1800  # 30 minutes
+
+Example (Procfile)
+```
+web: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
+worker: poetry run python -m app.scheduler.worker_main
+```
+
 Supabase Setup (quick start)
 - Create a project at https://supabase.com/ (free tier is fine to start).
 - In your project, go to Settings → API:
@@ -72,7 +84,7 @@ Supabase Setup (quick start)
 - Keep Row Level Security on (default). We will define policies with migrations later.
 
 Dev Test Token Generation
-cd backend & bash ./supa_mint_test_token.sh free@meme.com hehemama
+`cd backend && bash ./supa_mint_test_token.sh free@meme.com hehemama`
 
 Troubleshooting 401 (Unauthorized)
 - Ensure the frontend is sending `Authorization: Bearer <access_token>` for API calls. In dev, Login performs a Supabase password grant to obtain this token using Vite envs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
@@ -95,3 +107,17 @@ Surfer Docker Service (External)
 Notes
 - For neural/auto searches, we enforce `numResults ≤ 25` to stay within the low-cost tier.
 - Our API responses include `provider_cost` mirroring Exa's `costDollars` breakdown.
+
+Quick health check (curl)
+- Verify the Surfer service is reachable before running the worker:
+```
+curl -s $SURFER_BASE_URL/healthz | jq .
+# Expect: { "status": "ok", ... }
+```
+
+Minimal explorer submit (dev)
+```
+curl -s -X POST "$SURFER_BASE_URL/api/explorer/jobs" \
+  -H 'content-type: application/json' \
+  -d '{"instruction":"Research topic","headless":true,"max_steps":2}' | jq .
+```

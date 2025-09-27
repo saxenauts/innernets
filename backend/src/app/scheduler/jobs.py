@@ -8,10 +8,13 @@ Implementations are minimal and may be mocked in tests.
 """
 
 from typing import Any, Dict, List, Optional
+import logging
+import json
 from datetime import datetime, timezone
 from .. import supabase_client as sb_mod
 # Back-compat for tests that patch jobs.get_service_client
 get_service_client = sb_mod.get_service_client
+logger = logging.getLogger("scheduler")
 
 
 def enqueue_job(user_id: str, payload: Dict[str, Any], schedule_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
@@ -45,6 +48,22 @@ def claim_jobs(limit: int = 1) -> List[Dict[str, Any]]:
             # Skip claiming if we've exhausted max attempts
             continue
         sb.table("jobs").update({"status": "running", "started_at": now, "attempts": (attempts + 1)}).eq("id", j["id"]).execute()
+        try:
+            logger.info(
+                json.dumps(
+                    {
+                        "event": "job.claimed",
+                        "job_id": j.get("id"),
+                        "user_id": j.get("user_id"),
+                        "schedule_id": j.get("schedule_id"),
+                        "attempts": attempts + 1,
+                        "agent": (j.get("payload") or {}).get("agent"),
+                    }
+                )
+            )
+        except Exception:
+            # logging should never crash the worker
+            pass
     return jobs
 
 
@@ -72,9 +91,35 @@ def mark_done(job_id: str, success: bool, error: Optional[Dict[str, Any]] = None
 
 
 def start_run(job_id: str) -> Dict[str, Any]:
+    """Idempotent start of a run for a job.
+
+    With a unique index on runs(job_id), an insert may conflict on retries.
+    Use upsert on job_id to return the existing row if present.
+    """
     sb = sb_mod.get_service_client()
-    resp = sb.table("runs").insert({"job_id": job_id}).execute()
-    return resp.data[0]
+    try:
+        resp = sb.table("runs").upsert({"job_id": job_id}, on_conflict="job_id").execute()
+        row = (resp.data or [])[0]
+        if not row:
+            # Fallback: select existing row by job_id
+            row = sb.table("runs").select("*").eq("job_id", job_id).limit(1).execute().data[0]
+        try:
+            logger.info(
+                json.dumps({"event": "run.started", "job_id": job_id, "run_id": row.get("id")})
+            )
+        except Exception:
+            pass
+        return row
+    except Exception:
+        # Fallback: select existing, else insert (emulate upsert when client lacks .upsert)
+        existing = sb.table("runs").select("*").eq("job_id", job_id).limit(1).execute().data
+        if existing:
+            return existing[0]
+        ins = sb.table("runs").insert({"job_id": job_id}).execute()
+        row = (ins.data or [None])[0]
+        if row is None:
+            raise
+        return row
 
 
 def finish_run(run_id: str, status: str, metrics: Optional[Dict[str, Any]] = None, error: Optional[Dict[str, Any]] = None) -> None:
@@ -86,3 +131,7 @@ def finish_run(run_id: str, status: str, metrics: Optional[Dict[str, Any]] = Non
     if error is not None:
         patch["error"] = error
     sb.table("runs").update(patch).eq("id", run_id).execute()
+    try:
+        logger.info(json.dumps({"event": "run.finished", "run_id": run_id, "status": status}))
+    except Exception:
+        pass

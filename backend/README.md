@@ -1,12 +1,13 @@
 # InnerNets Backend (Docs-first)
 
-This folder contains backend planning docs and evolving specs, plus a minimal FastAPI app. See:
-- `AGENTS.md` — guidelines and architecture
-- `ENVIRONMENT.md` — environment variables and configuration
-- `SCHEMA.md` — evolving database schema
-- `LLM_ADAPTER.md` — LLM provider adapter spec
-- `SCHEDULER.md` — scheduler and jobs design
-- `TODO.md` — milestones and task list
+This folder contains backend code and pointers to central docs in `docs/`. See:
+- `AGENTS.md` — backend guidelines
+- `../docs/backend-environment.md` — environment variables and configuration
+- `../docs/backend-schema.md` — evolving database schema
+- `../docs/backend-llm-adapter.md` — LLM provider adapter spec
+- `../docs/backend-scheduler.md` — scheduler and jobs design
+- `../docs/backend-roadmap.md` — milestones and task list
+ - Architecture overview (end‑to‑end): `../docs/architecture-runs-scheduler.md`
 
 Code
 - `src/app/main.py` — FastAPI app with health endpoint
@@ -41,13 +42,40 @@ Development (Poetry)
     - API: `poetry run uvicorn app.main:app --reload`
     - Worker: `poetry run python -m app.scheduler.worker_main`
   - Procfile (optional, for honcho/foreman):
-    - `web: poetry run python -m app.run_backend`
+    - `web: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000`
     - `worker: poetry run python -m app.scheduler.worker_main`
     - Run: `poetry run honcho start -f Procfile` (if installed).
   - Auth: pass `Authorization: Bearer <supabase_access_token>` when calling `/me/profile`.
   - Get the token from your frontend session or Supabase Auth, and set `SUPABASE_JWT_SECRET` in `backend/.env`.
   - Audience: tokens from Supabase use `aud: "authenticated"`. Backend verifies this by default; override with `SUPABASE_JWT_AUD` if needed.
   - Loading env: start from `backend/` or set `DOTENV_PATH=backend/.env` if starting from repo root.
+
+Dev Runbook (staging-ready)
+- Prereqs: Python 3.11+, Poetry, Supabase project (URL, keys), Surfer Docker service.
+- Env: `cp backend/.env.example backend/.env` and fill SUPABASE_* + SURFER_*; set `CORS_ALLOW_ORIGINS` to your frontend origin.
+- Migrations: apply SQL in `backend/migrations/` in order (0001 → 0005) via Supabase SQL Editor. Verify `runs_job_id_unique` index exists.
+- Start
+  - Simple (single process): `poetry run python -m app.run_backend` (enables in‑app scheduler)
+  - Split (recommended):
+    - API: `poetry run uvicorn app.main:app --reload`
+    - Worker: `poetry run python -m app.scheduler.worker_main`
+- Token: `backend/supa_mint_test_token.sh` to mint a short‑lived dev token. Use as `Authorization: Bearer <token>`.
+- Quick checks
+  - `GET /healthz` returns `{ "ok": true, "surfer_ok": true|false }`
+  - `POST /streams` with `{ mission, cadence: "weekly" }` creates a Stream
+  - `POST /streams/{id}/run` enqueues a job (returns `{ job_id, status: "queued" }`)
+
+Migrations Runbook (short)
+- Apply in order:
+  1) 2025-08-26_0001_profiles.sql
+  2) 2025-08-27_0002_scheduler.sql
+  3) 2025-08-29_0003_streams_curations_urls.sql
+  4) 2025-09-25_0004_curation_body_md.sql
+  5) 2025-09-27_0005_runs_job_id_unique.sql
+- Verify:
+  - Unique: `runs(job_id)` — idempotency
+  - RLS enabled on profiles, streams, curation_*; urls has SELECT policy
+  - Helpful indexes present (see migration SQL)
 
 Surfer Docker Integration
 - Start the Surfer service from its repo (Docker). See `docs/surfer-docker-integration.md`.

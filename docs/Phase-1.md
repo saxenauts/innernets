@@ -1,3 +1,5 @@
+Status: Historical — Early search‑only MVP spec. The current system defaults to the Surfer agent and includes scheduler integration tied to Streams. See `docs/architecture-runs-scheduler.md` and `docs/integration.md` for up‑to‑date details.
+
 # InnerNets — Search‑Only MVP Spec ("Streams")
 
 ## 0) One‑liner

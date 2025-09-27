@@ -27,7 +27,7 @@ Migration Workflow (minimalist)
 3) Verify in Dev:
    - Table Editor → confirm table exists
    - Run a simple insert/select in SQL Editor to validate constraints
-4) Commit migration SQL file and update `backend/SCHEMA.md` (evolving doc)
+4) Commit migration SQL file and update `docs/backend-schema.md` (evolving doc)
 5) Promote to Prod later:
    - Link prod: `supabase link --project-ref <PROD_PROJECT_REF>`
    - Apply the exact same SQL via SQL Editor or CLI
@@ -35,13 +35,13 @@ Migration Workflow (minimalist)
 Testing in Supabase (Dev)
 - Create/locate a test user: Dashboard → Authentication → Users → copy the user UUID
 - Insert a profile record (service role bypasses RLS in server-side contexts; SQL Editor runs as a superuser):
-```sql
+```
 insert into public.profiles (id, display_name)
 values ('<AUTH_USER_UUID>', 'Test User')
 on conflict (id) do update set display_name = excluded.display_name;
 ```
 - Query back:
-```sql
+```
 select id, display_name, time_zone, created_at, updated_at from public.profiles where id = '<AUTH_USER_UUID>';
 ```
 - Note: RLS policies are enforced by the API (auth/anon roles). SQL Editor bypasses RLS. We’ll validate RLS via the backend API once endpoints are added.
@@ -86,7 +86,9 @@ FAQ
 - Where do migrations live? `backend/migrations/`
 - Can I change schema via the UI? Yes for dev experiments, but capture the diff as SQL and commit it here.
 - What about seed data? Add seed scripts under `backend/migrations/seeds/` as needed.
+
 Curations Markdown Body (0004)
 - Apply migration `backend/migrations/2025-09-25_0004_curation_body_md.sql` to add `body_md` to `curation_clusters`.
 - After applying, the API will begin returning `body_md` fields in `GET /streams/:id/latest` and `GET /streams/:id/runs`.
 - Existing runs will have `body_md = null`; new runs will populate it via the remixer.
+
