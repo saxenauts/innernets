@@ -136,6 +136,12 @@ Already covered (no action):
 - [ ] Accessibility pass (ARIA roles on dialogs/menus, focus management, link semantics). Add a quick a11y checklist to `frontend/AGENTS.md`.
   - Partial: Added `role="dialog"` and `aria-modal` to the dialog container. Focus management and menu roles deferred. (ref: frontend/src/components/ui/dialog.tsx)
 
+## Backend — Scheduler & Finalizer
+- [x] Add minimal "Submit + Finalize" pattern:
+  - On Surfer submit, persist `surfer_job_id` to `runs.metrics` immediately.
+  - Add a background finalizer that checks Surfer for completion and persists results even if the worker timed out earlier (e.g., sleep/long jobs). Idempotent and bounded per tick. (ref: backend/src/app/scheduler/finalizer.py)
+  - Wire finalizer into scheduler loop; keep current wait logic intact.
+
 ## Frontend — Docs & Config
 - [ ] Frontend README: add a quick troubleshooting section (CORS, missing envs, 401 from backend).
 - [ ] Document required Vite envs and example `.env.local` (already present; confirm values and add Surfer/BFF notes if a proxy is introduced later).

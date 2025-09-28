@@ -135,3 +135,33 @@ def finish_run(run_id: str, status: str, metrics: Optional[Dict[str, Any]] = Non
         logger.info(json.dumps({"event": "run.finished", "run_id": run_id, "status": status}))
     except Exception:
         pass
+
+
+def update_run_metrics(run_id: str, metrics_patch: Dict[str, Any]) -> None:
+    """Best-effort merge-like update of runs.metrics.
+
+    For simplicity, overwrite metrics with a shallow merge of existing + patch.
+    If fetching existing fails, just set to patch.
+    """
+    sb = sb_mod.get_service_client()
+    try:
+        cur = sb.table("runs").select("metrics").eq("id", run_id).limit(1).execute().data
+        base = (cur[0] or {}).get("metrics") if cur else None
+    except Exception:
+        base = None
+    merged: Dict[str, Any] = {}
+    try:
+        if isinstance(base, dict):
+            merged.update(base)
+    except Exception:
+        pass
+    try:
+        if isinstance(metrics_patch, dict):
+            merged.update(metrics_patch)
+    except Exception:
+        pass
+    try:
+        sb.table("runs").update({"metrics": merged}).eq("id", run_id).execute()
+    except Exception:
+        # Swallow to avoid crashing callers
+        logger.debug("update_run_metrics failed", exc_info=True)

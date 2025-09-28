@@ -25,6 +25,7 @@ Code
    - `src/app/llm/search_steps.py` — Pydantic schemas + wrappers for LLM steps
  - `src/app/agents/search_workflow.py` — orchestration (IDs only to LLM; Exa routing)
 - `src/app/agents/surfer_workflow.py` — orchestration for Surfer Docker service (LLM → instruction+context → submit/poll → remix final markdown feed)
+- `src/app/scheduler/finalizer.py` — background reconciler that finalizes Surfer jobs that finish after timeouts
  - `src/app/agents/dispatcher.py` — routes jobs to either Surfer or legacy Exa workflow
 
 Service Plan
@@ -85,8 +86,8 @@ Surfer Docker Integration
 - The workflow performs two LLM steps: first to author the Surfer instruction+context (task-first XML prompt), second to remix Surfer’s `{summary, links[]}` into a markdown body (`body_md`) per curation with explicit links.
 
 Long-running jobs
-- Surfer runs 5–25 minutes. The worker polls status every `SURFER_POLL_INTERVAL_S` seconds and persists a `curation_run` upon completion.
-- For prod, run API and worker separately. Ensure the worker has network access to the Surfer service.
+- Surfer typically runs 5–25 minutes (may be longer). The worker polls status every `SURFER_POLL_INTERVAL_S` seconds and persists a `curation_run` upon completion. A Finalizer loop also reconciles late completions (e.g., sleep/long jobs) by checking Surfer and persisting results if the worker previously timed out.
+- For prod, run API and worker separately. Ensure the worker and finalizer have network access to the Surfer service.
 
 Next
 - Add logging strategy, DB migrations, scheduler worker, and expand LLM adapter (retries, rate limits, cost est.).

@@ -6,6 +6,7 @@ from app.config import settings
 from app.llm.types import ProviderConfig, InvokeOptions
 from app.llm import surfer_steps
 from app.repositories import curations_repo, urls_repo
+from app.scheduler.jobs import update_run_metrics
 from app.clients import surfer_client
 from app.supabase_client import get_service_client
 
@@ -97,6 +98,21 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
             )
         else:
             result = surfer_client.wait_for_result(job_id)
+
+    # Persist Surfer IDs to the runs table as early as possible (if worker passed run_id via job)
+    try:
+        run_id_for_metrics = job.get("__run_id") or job.get("_run_id")
+        if run_id_for_metrics and submit:
+            metrics_early = {
+                "agent": "surfer_v1",
+                "surfer_job_id": submit.get("job_id"),
+                "surfer_status_url": submit.get("status_url"),
+                "surfer_logs_url": submit.get("logs_url"),
+            }
+            update_run_metrics(str(run_id_for_metrics), metrics_early)
+    except Exception:
+        # best-effort only
+        pass
 
     raw_curations: List[Dict[str, Any]] = list(result.get("curations") or [])
 

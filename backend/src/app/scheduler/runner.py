@@ -8,6 +8,7 @@ from typing import Callable, Optional
 from ..config import settings
 from .ticker import tick
 from .worker import run_once
+from .finalizer import finalize_once
 
 
 def _loop(stop: threading.Event, handle_job: Callable, poll_interval_s: Optional[float]) -> None:
@@ -28,6 +29,11 @@ def _loop(stop: threading.Event, handle_job: Callable, poll_interval_s: Optional
         except Exception:
             # Likewise for worker
             pass
+        # Reconcile late completions (best-effort, bounded)
+        try:
+            finalize_once(max_n=5)
+        except Exception:
+            pass
         # Sleep or exit early if stop flagged
         stop.wait(interval)
 
@@ -38,4 +44,3 @@ def start_background_scheduler(handle_job: Callable, poll_interval_s: Optional[f
     th = threading.Thread(target=_loop, args=(stop, handle_job, poll_interval_s), daemon=True)
     th.start()
     return th, stop
-

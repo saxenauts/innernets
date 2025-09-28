@@ -52,6 +52,8 @@ def run_once(handle_job) -> int:
             )
         except Exception:
             pass
+        # Pass run_id to handler so it can record external IDs early
+        job["__run_id"] = run_id
         metrics: Dict[str, Any] = handle_job(job)
         finish_run(run_id, status="succeeded", metrics=metrics)
         mark_done(job["id"], success=True)
@@ -70,6 +72,7 @@ def run_once(handle_job) -> int:
         except Exception:
             pass
     except Exception as e:
+        # Persist failure; metrics may have been written earlier by the handler
         finish_run(run_id, status="failed", error={"message": str(e)})
         mark_done(job["id"], success=False, error={"message": str(e)})
         try:
