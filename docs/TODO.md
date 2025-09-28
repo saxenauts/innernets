@@ -11,6 +11,7 @@ This list tracks deferred items we purposely left for later. Keep entries concis
 - Typed error model: parse PostgREST errors and return `{code,message}` up the stack instead of raw text. Centralize in the wrapper.
 
 ## Backend — Scheduler & Finalizer
+- Surfer health gate: before submitting/polling jobs, ensure the Surfer service is healthy. On API/worker startup, poll `SURFER_BASE_URL/healthz` with a short backoff until healthy (bounded by a readiness timeout). If unhealthy, short‑circuit dependent endpoints with HTTP 503 instead of attempting requests. Make URL/timeouts configurable (e.g., `SURFER_HEALTH_URL`, `SURFER_HEALTH_TIMEOUT_S`, `SURFER_HEALTH_RETRY_S`) and log health state transitions.
 - Standalone finalizer runner: add `backend/src/app/scheduler/finalizer_main.py` to run the finalize loop when using split processes (no in‑app scheduler). Document start/stop and recommended intervals.
 - Finalizer enhancements: light backoff/`next_check_at` to avoid rechecking the same run too often; add logging/metrics counters for finalized count, success, and skip reasons. File: `backend/src/app/scheduler/finalizer.py`.
 - Deferred from cleanup (post‑staging):
