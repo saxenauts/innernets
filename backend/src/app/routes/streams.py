@@ -122,7 +122,10 @@ def create_stream(payload: StreamCreate, user_id: str = Depends(get_current_user
 
 @router.get("", response_model=List[StreamOut])
 def list_streams(user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)) -> List[StreamOut]:
-    rows = streams_repo.list_streams(user_id, token)
+    try:
+        rows = streams_repo.list_streams(user_id, token)
+    except streams_repo.UpstreamUnavailable:
+        raise HTTPException(status_code=503, detail="Temporary connectivity issue. Please try again.")
     # Optionally decorate with latest run timestamp (simple N+1)
     out: List[StreamOut] = []
     for r in rows:
@@ -139,7 +142,10 @@ def list_streams(user_id: str = Depends(get_current_user_id), token: str = Depen
 
 @router.get("/{stream_id}", response_model=StreamOut)
 def get_stream(stream_id: str, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)) -> StreamOut:
-    row = streams_repo.get_stream(stream_id, user_id, token)
+    try:
+        row = streams_repo.get_stream(stream_id, user_id, token)
+    except streams_repo.UpstreamUnavailable:
+        raise HTTPException(status_code=503, detail="Temporary connectivity issue. Please try again.")
     if not row:
         raise HTTPException(status_code=404, detail="Stream not found")
     return _to_stream_out(row)
@@ -193,7 +199,10 @@ def latest_curation(stream_id: str, user_id: str = Depends(get_current_user_id),
 def delete_stream(stream_id: str, hard: bool = False, user_id: str = Depends(get_current_user_id), token: str = Depends(get_current_token)):
     # Soft-delete: mark inactive and disable schedule
     # Ensure the stream exists and user has access
-    row = streams_repo.get_stream(stream_id, user_id, token)
+    try:
+        row = streams_repo.get_stream(stream_id, user_id, token)
+    except streams_repo.UpstreamUnavailable:
+        raise HTTPException(status_code=503, detail="Temporary connectivity issue. Please try again.")
     if not row:
         raise HTTPException(status_code=404, detail="Stream not found")
     streams_repo.delete_stream(stream_id, user_id, token, hard=bool(hard))
@@ -209,7 +218,10 @@ def list_runs(
     token: str = Depends(get_current_token),
 ):
     # Auth check: ensure user can access the stream
-    row = streams_repo.get_stream(stream_id, user_id, token)
+    try:
+        row = streams_repo.get_stream(stream_id, user_id, token)
+    except streams_repo.UpstreamUnavailable:
+        raise HTTPException(status_code=503, detail="Temporary connectivity issue. Please try again.")
     if not row:
         raise HTTPException(status_code=404, detail="Stream not found")
     runs = curations_repo.get_runs(stream_id, limit=limit, before_started_at=before) or []

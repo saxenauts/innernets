@@ -26,11 +26,37 @@ def get_supabase_client(url: Optional[str] = None, key: Optional[str] = None) ->
     return create_client(supabase_url, supabase_key)
 
 
-def get_user_supabase_client(token: str, url: Optional[str] = None, anon_key: Optional[str] = None) -> Client:  # type: ignore[name-defined]
-    """Create a Supabase client authenticated as the user via JWT.
+def _set_user_auth(client: "Client", token: str) -> "Client":  # type: ignore[name-defined]
+    """Apply user Authorization header to a Supabase client instance.
 
-    This uses the anon key and sets the PostgREST auth header to the provided user token,
-    ensuring Row Level Security (RLS) policies are enforced by the database.
+    Compatible with older/newer supabase-py shapes (postgrest/rest).
+    """
+    try:
+        client.postgrest.auth(token)  # type: ignore[attr-defined]
+    except Exception:
+        if hasattr(client, "rest") and hasattr(client.rest, "auth"):
+            client.rest.auth(token)  # type: ignore[attr-defined]
+    return client
+
+
+@lru_cache(maxsize=256)
+def _get_cached_user_client(token: str, supabase_url: str, public_anon: str) -> "Client":  # type: ignore[name-defined]
+    """LRU-cached per-token Supabase client to reuse HTTP connections.
+
+    Caching by (token, url, anon) ensures each active user reuses a pooled
+    httpx connection while preserving RLS via their JWT. When the token rotates,
+    a new cache entry is created automatically.
+    """
+    c = create_client(supabase_url, public_anon)
+    return _set_user_auth(c, token)
+
+
+def get_user_supabase_client(token: str, url: Optional[str] = None, anon_key: Optional[str] = None) -> Client:  # type: ignore[name-defined]
+    """Return a Supabase client authenticated as the user via JWT (cached).
+
+    Uses the anon key and sets the PostgREST Authorization header to enforce
+    Row Level Security (RLS). The client is cached per (token, url, anon) to
+    reuse the underlying HTTP connection pool and reduce TLS handshakes.
     """
     supabase_url = url or settings.SUPABASE_URL
     public_anon = anon_key or getattr(settings, "SUPABASE_ANON_KEY", None)
@@ -38,15 +64,7 @@ def get_user_supabase_client(token: str, url: Optional[str] = None, anon_key: Op
     if not supabase_url or not public_anon:
         raise ValueError("Missing SUPABASE_URL or SUPABASE_ANON_KEY")
 
-    client = create_client(supabase_url, public_anon)
-    # Set Authorization header for PostgREST requests to the user's access token
-    try:
-        client.postgrest.auth(token)  # type: ignore[attr-defined]
-    except Exception:
-        # Fallback for older clients: set on rest client if available
-        if hasattr(client, "rest") and hasattr(client.rest, "auth"):
-            client.rest.auth(token)  # type: ignore[attr-defined]
-    return client
+    return _get_cached_user_client(token, supabase_url, public_anon)
 
 
 def get_service_client() -> Client:  # type: ignore[name-defined]

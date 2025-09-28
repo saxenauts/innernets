@@ -4,6 +4,12 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from ..supabase_client import get_user_supabase_client, get_service_client
+import httpx
+
+
+class UpstreamUnavailable(Exception):
+    """Raised when Supabase/PostgREST is temporarily unavailable after retry."""
+    pass
 
 
 def _streams_table(token: str):
@@ -49,19 +55,47 @@ def create_stream(user_id: str, token: str, fields: Dict[str, Any]) -> Dict[str,
 
 def list_streams(user_id: str, token: str) -> List[Dict[str, Any]]:
     st = _streams_table(token)
-    resp = (
-        st.select("id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at")
-        .eq("user_id", user_id)
-        .eq("active", True)
-        .order("created_at", desc=True)
-        .execute()
-    )
+    try:
+        resp = (
+            st.select("id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at")
+            .eq("user_id", user_id)
+            .eq("active", True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+    except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadError):
+        try:
+            resp = (
+                st.select("id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at")
+                .eq("user_id", user_id)
+                .eq("active", True)
+                .order("created_at", desc=True)
+                .execute()
+            )
+        except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadError) as e:
+            raise UpstreamUnavailable("Supabase unavailable") from e
     return resp.data or []
 
 
 def get_stream(stream_id: str, user_id: str, token: str) -> Optional[Dict[str, Any]]:
     st = _streams_table(token)
-    resp = st.select("id, user_id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at").eq("id", stream_id).limit(1).execute()
+    try:
+        resp = (
+            st.select("id, user_id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at")
+            .eq("id", stream_id)
+            .limit(1)
+            .execute()
+        )
+    except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadError):
+        try:
+            resp = (
+                st.select("id, user_id, mission, sources_hints, cadence, time_zone, active, created_at, updated_at")
+                .eq("id", stream_id)
+                .limit(1)
+                .execute()
+            )
+        except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadError) as e:
+            raise UpstreamUnavailable("Supabase unavailable") from e
     data = resp.data or []
     return data[0] if data else None
 
