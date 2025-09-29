@@ -12,7 +12,29 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH into VM and deploy
+      - name: Deploy backend via SSH (password auth)
+        if: ${{ secrets.STAGING_SSH_PASSWORD != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          password: ${{ secrets.STAGING_SSH_PASSWORD }}
+          port: ${{ secrets.STAGING_SSH_PORT || 22 }}
+          script: |
+            set -euo pipefail
+            WORKDIR=${{ secrets.STAGING_WORKDIR }}
+            if [ ! -d "$WORKDIR/.git" ]; then
+              echo "Missing repo at $WORKDIR. Clone it once on the VM and set STAGING_WORKDIR accordingly."
+              exit 1
+            fi
+            cd "$WORKDIR"
+            git fetch --all --prune
+            git checkout main
+            git pull --ff-only
+            docker compose -f compose.staging.yml -p innernets-staging up -d --build --remove-orphans
+
+      - name: Deploy backend via SSH (key auth)
+        if: ${{ secrets.STAGING_SSH_PASSWORD == '' }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
@@ -32,3 +54,29 @@ jobs:
             git pull --ff-only
             docker compose -f compose.staging.yml -p innernets-staging up -d --build --remove-orphans
 
+      - name: (Optional) Update Surfer service
+        if: ${{ secrets.SURFER_WORKDIR != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          password: ${{ secrets.STAGING_SSH_PASSWORD }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: ${{ secrets.STAGING_SSH_PORT || 22 }}
+          script: |
+            set -euo pipefail
+            SWORK=${{ secrets.SURFER_WORKDIR }}
+            if [ ! -d "$SWORK/.git" ]; then
+              echo "Missing Surfer repo at $SWORK. Clone it once on the VM and set SURFER_WORKDIR accordingly."
+              exit 1
+            fi
+            cd "$SWORK"
+            git fetch --all --prune
+            git checkout main || true
+            git pull --ff-only || true
+            docker compose up -d --build --remove-orphans
+
+      - name: Verify API health
+        run: |
+          set -euo pipefail
+          curl -fsS https://${{ vars.API_STAGING_HOST || 'api-staging.innernets.ai' }}/healthz
