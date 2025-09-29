@@ -64,3 +64,9 @@
   - `VITE_SUPABASE_ANON_KEY=<your-anon-key>`
 
 See `docs/updates.md` for change history.
+
+## Hosting (Vercel) routing
+- This SPA requires a fallback rewrite so deep‑link reloads (e.g., `/streams`) resolve to the client app.
+- Config lives in `frontend/vercel.json`:
+  - Rewrites unknown paths to `/index.html` while still serving real static assets directly.
+  - Prevents `404: NOT_FOUND` pages from Vercel when reloading on client routes.
