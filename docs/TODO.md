@@ -23,6 +23,11 @@ This list tracks deferred items we purposely left for later. Keep entries concis
 - Visibility‑based polling control: pause “latest” polling when the tab is hidden; do one catch‑up fetch on focus. File: `frontend/src/pages/StreamView.tsx` (or shared polling util).
 - Optional SPA auth mitigations: preemptive refresh near expiry and single retry on 401 in the API wrapper to reduce idle hiccups.
 - Accessibility pass: ARIA roles on dialogs/menus, focus management, link semantics. File hints: `frontend/src/components/ui/dialog.tsx`, global nav/menu components. Track a11y checklist in `frontend/AGENTS.md`.
+- Stream creation onboarding (feature): guided, temporary chat to understand the user’s mission, learning level, goals, preferred sources/formats/cadence, and consumption preferences. Use an LLM for the conversation and to generate a concise stream title (fits UI length) and a meaningful description. Persist only the final structured config + summary (chat remains ephemeral). Include guardrails (tone, safety), language detection, and a fallback multi‑step form.
+  - Frontend: new flow (e.g., `frontend/src/pages/StreamCreateChat.tsx`), tooltip/help copy, a11y, cancel/confirm. Limit tokens/costs; show progress.
+  - Backend: endpoints to manage ephemeral onboarding sessions (e.g., `POST /onboarding/session`, `POST /onboarding/message`, `POST /onboarding/finalize` → creates stream). Enforce RLS; rate-limit by user; no PII logging.
+  - LLM prompts: system + tool prompts to extract structured fields (mission, sources, cadence, time_zone, goals, level, formats). Tests for prompt assembly and length constraints.
+  - QA: Vitest/RTL UI tests, FastAPI route tests, analytics events for drop‑offs; copy review.
 
 ## Docs & Tooling
 - Hygiene: run `markdownlint` and `prettier` across `docs/**`. Add brief style notes to AGENTS.
