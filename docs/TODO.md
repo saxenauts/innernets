@@ -28,6 +28,7 @@ This list tracks deferred items we purposely left for later. Keep entries concis
   - Backend: endpoints to manage ephemeral onboarding sessions (e.g., `POST /onboarding/session`, `POST /onboarding/message`, `POST /onboarding/finalize` → creates stream). Enforce RLS; rate-limit by user; no PII logging.
   - LLM prompts: system + tool prompts to extract structured fields (mission, sources, cadence, time_zone, goals, level, formats). Tests for prompt assembly and length constraints.
   - QA: Vitest/RTL UI tests, FastAPI route tests, analytics events for drop‑offs; copy review.
+- Create a feedback and learning progress system (not chat) for next updates
 
 ## Docs & Tooling
 - Hygiene: run `markdownlint` and `prettier` across `docs/**`. Add brief style notes to AGENTS.

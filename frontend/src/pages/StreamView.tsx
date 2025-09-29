@@ -38,7 +38,7 @@ export default function StreamView() {
         const s = await api.get<any>(`/streams/${encodeURIComponent(id)}`);
         if (!cancelled) {
           setMeta({ name: s.mission?.slice(0, 80) || 'Stream', description: s.mission || '' });
-          setStreamInfo({ mission: s.mission || '', sources: s.sources_hints || '', cadence: s.cadence || 'weekly' });
+          setStreamInfo({ mission: s.mission || '', sources: s.sources || '', cadence: s.cadence || 'weekly' });
         }
       } catch (e: any) {
         if (!cancelled) {

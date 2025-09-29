@@ -47,6 +47,15 @@
 - Keep changes small and token-driven; avoid ad-hoc colors.
 - Auth sessions: supabase-js persists and refreshes sessions. After a long idle/background tab, the first request can 401 until refresh completes, then recover. This is expected for SPA flows; consider a backend cookie session later if zero transient 401s is a requirement.
 
+## Accessibility
+- Keep keyboard focus visible on every interactive element; do not remove focus rings.
+- Dialogs/overlays: set `role="dialog"`, `aria-modal="true"`, and ensure escape closes. Prefer opaque surfaces; avoid translucency beneath.
+- Labels: associate labels with inputs via `for`/`id`.
+- Live regions: announce important status changes politely via `aria-live="polite"` (e.g., error banners).
+- Hit targets: ≥ 40×40 logical pixels for tap/click targets.
+- Contrast: ensure body text and small text meet WCAG AA.
+- Reference: `docs/frontend-design.md` for the quick a11y checklist and design guardrails.
+
 ## Environment
 - Create `frontend/.env.local` with:
   - `VITE_API_BASE_URL=http://localhost:8000`

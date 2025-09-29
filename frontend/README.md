@@ -37,3 +37,41 @@ Testing
 Auth sessions & idle behavior
 - supabase-js auto-refreshes sessions. After a long idle or when a tab is backgrounded or the device sleeps, browsers can throttle timers; the first API call on return may briefly use an expired access token and receive a 401 before the library refreshes in the background. A reload or a moment later requests succeed.
 - This is expected in SPA setups. Options if needed later: trigger a session check on `visibilitychange` (tab focus) or move to a backend-managed cookie session to eliminate transient 401s.
+
+Troubleshooting
+- CORS error from browser
+  - Symptom: fetch to `VITE_API_BASE_URL` blocked with a CORS message in DevTools.
+  - Fix: ensure backend `CORS_ALLOW_ORIGINS` includes `http://localhost:5173` (or `*` for local only). Restart backend after changes.
+- 401 Unauthorized after idle
+  - Symptom: first request after returning to an idle/backgrounded tab 401s; a subsequent retry works.
+  - Cause: access token expired while tab was throttled; supabase-js refreshes on activity.
+  - Workaround: retry once on 401, or reload. Structural fix (later): move to a cookie session (BFF).
+- Missing envs
+  - Symptom: API base URL is `undefined` or login UI shows errors immediately.
+  - Fix: create `.env.local` with `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY`. See `.env.example` for placeholders.
+
+Dev proxy (optional)
+- You can proxy API calls in dev instead of configuring backend CORS.
+- Example (not enabled by default): add a `server.proxy` block to `vite.config.ts`.
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+});
+```
+
+Then set `VITE_API_BASE_URL=/api` in `.env.local`.

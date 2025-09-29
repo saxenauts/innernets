@@ -3,6 +3,7 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-09-29 — Frontend Docs & Consistency: aligned `sources` naming in StreamView (removed `sources_hints` usage); added Troubleshooting and optional dev proxy guidance to `frontend/README.md`; added `frontend/.env.example`; surfaced an a11y checklist in `frontend/AGENTS.md`; standardized test file naming to `test_*` and simplified Vitest include; removed duplicate Vite configs and untracked `*.tsbuildinfo` with `.gitignore`.
 - 2025-09-28 — Backend Supabase hardening (minimal): cached per‑token Supabase client to reuse HTTP pools and reduce TLS/EOF hiccups after idle; added a one‑shot retry on Streams reads and mapped repeated failures to HTTP 503. Also created `docs/TODO.md` to track deferred improvements (shared httpx PostgREST client, broader retry mapping, finalizer runner, a11y, CI). (ref: backend/src/app/supabase_client.py, backend/src/app/repositories/streams_repo.py, backend/src/app/routes/streams.py, docs/TODO.md)
 - 2025-09-27 — Streams & Runs UX: removed inline "job in queue" status. "Run Now" now disables on enqueue and remains disabled while a run is pending/in‑progress; it re‑enables when `/streams/:id/latest` reports a newer finished run. Added hover tooltip on the disabled button; no new inline text. Also added tests for run gating and pagination overfetch guard. (ref: frontend/src/pages/StreamView.tsx, frontend/src/test/test_stream_run_gating.tsx, frontend/src/test/test_streamview_pagination.tsx)
 - 2025-09-27 — Frontend auth tests: added Vitest + RTL tests for session gating, login/sign-up flows (including confirmation-required path), and error banners on Streams/StreamView. Updated Vitest config and JSDOM setup. (ref: frontend/src/test/*)
@@ -116,6 +117,7 @@ Guidelines
 
 ### Done
 - Fix StreamView curations not clickable: ensure `GET /streams/:id/runs` returns `clusters[].links` via explicit FK join and attach before grouping; frontend renders native anchors only.
+- Frontend docs & config cleanup: Troubleshooting (CORS/401/missing envs), `.env.example`, a11y checklist in `frontend/AGENTS.md`, test naming standardized, and Vite/tsbuildinfo cleanup.
 
 ## 2025-09-25 — Surfer Docker Integration (streams default)
 - Added Surfer client and workflow to replace Exa-based search for Streams by default (legacy kept for back-compat).
