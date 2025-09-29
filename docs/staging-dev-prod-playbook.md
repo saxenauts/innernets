@@ -119,6 +119,41 @@ docker compose -f compose.staging.yml -p innernets-staging up -d --build
 - `backend/.dockerignore` — keeps image small and excludes secrets/tests.
 - `.github/workflows/deploy-staging.yml` — SSH-based deploy from GitHub Actions on push to `main`.
 
+## Git Access (PAT credential store)
+- Create a Fine‑Grained PAT: repo access → select this repo (and Surfer repo), permissions: Contents: Read; Metadata: Read; set an expiry.
+- Configure one‑time on the VM: `git config --global credential.helper store`
+- Clone via HTTPS (first time prompts for username + PAT):
+  - `mkdir -p ~/apps && cd ~/apps`
+  - `git clone https://github.com/<org>/innernets.git`
+  - `git clone https://github.com/<org>/<surfer-repo>.git surfer-agent`
+- Git saves token in `~/.git-credentials` so future `git pull` is non‑interactive. Tighten perms: `chmod 600 ~/.git-credentials`.
+- Set GitHub Action secret `STAGING_WORKDIR` to your actual path (e.g., `/home/<user>/apps/innernets`).
+
+## Backend Docker bring‑up (commands)
+- Prepare env: `cp backend/.env.example.staging backend/.env.staging` and fill values.
+  - Ensure: `CORS_ALLOW_ORIGINS=https://staging.innernets.ai`, `SURFER_BASE_URL=http://host.docker.internal:8001`, Supabase vars, provider keys.
+- Build & run: `docker compose -f compose.staging.yml -p innernets-staging up -d --build`
+- Verify: `curl -s http://127.0.0.1:8000/healthz | jq .` (expect `{ ok: true, surfer_ok: true }`).
+
+## Surfer Docker bring‑up (commands)
+- In your Surfer repo path (e.g., `~/apps/surfer-agent`):
+  - Create `.env` with provider keys and `SURFER_CORS_ORIGINS=https://staging.innernets.ai`.
+  - Ensure compose binds private port and adequate SHM. Minimal example:
+```
+services:
+  surfer:
+    build: .
+    env_file: .env
+    ports:
+      - "127.0.0.1:8001:8001"
+    shm_size: "1g"
+    volumes:
+      - ./.artifacts:/app/surfer-agent/.artifacts
+    restart: unless-stopped
+```
+- Start: `docker compose up -d`
+- Verify: `curl -s http://127.0.0.1:8001/healthz | jq .`
+
 ## Optional: Local Docker Test (before VM) — Status: Done
 
 This mirrors staging but runs everything on your machine so you can keep using `npm run dev` for the frontend.
@@ -148,29 +183,27 @@ Steps
     - [x] `sudo apt-get install -y git nginx python3-certbot-nginx jq`
     - [x] `sudo timedatectl set-timezone UTC`
 
-- [ ] Surfer (private on 8001)
-  - [ ] Clone Surfer to `/opt/surfer-agent`
-  - [ ] `.env` with provider keys, `SURFER_CORS_ORIGINS=https://staging.innernets.ai`
-  - [ ] Compose binds `127.0.0.1:8001:8001` and sets `shm_size: "1g"`
-  - [ ] Start and verify `curl -s http://127.0.0.1:8001/healthz | jq .`
+- [x] Surfer (private on 8001)
+  - [x] Clone Surfer to host (e.g., `~/apps/surfer-agent`)
+  - [x] `.env` with provider keys, `SURFER_CORS_ORIGINS=https://staging.innernets.ai`
+  - [x] Compose binds `127.0.0.1:8001:8001` and sets `shm_size: "1g"`
+  - [x] Health OK: `curl -s http://127.0.0.1:8001/healthz | jq .`
 
-- [ ] Clone this repo on VM
-  - [ ] Create Deploy Key and add to GitHub
-  - [ ] `git clone git@github.com:<org>/<repo>.git /opt/innernets`
+- [x] Clone this repo on VM
+  - [x] Cloned via HTTPS using PAT + credential store to your home path (e.g., `/home/<user>/apps/innernets`)
+  - [ ] Set `STAGING_WORKDIR` repo secret to this path (for the deploy Action)
 
-- [ ] Backend env (staging)
-  - [ ] Create `/opt/innernets/backend/.env.staging`
-  - [ ] Fill Supabase vars and provider keys
-  - [ ] Set `CORS_ALLOW_ORIGINS=https://staging.innernets.ai`
-  - [ ] Set `SURFER_BASE_URL=http://host.docker.internal:8001`
-  - [ ] Ensure `SCHEDULER_IN_APP=0`
+- [x] Backend env (staging)
+  - [x] Created `backend/.env.staging` and filled Supabase vars and provider keys
+  - [x] Set `CORS_ALLOW_ORIGINS=https://staging.innernets.ai`
+  - [x] Set `SURFER_BASE_URL=http://host.docker.internal:8001`
+  - [x] Ensured `SCHEDULER_IN_APP=0`
 
-- [ ] Backend containers (Compose)
-  - [ ] `cd /opt/innernets`
-  - [ ] `docker compose -f compose.staging.yml -p innernets-staging up -d --build`
-  - [ ] Verify `curl -s http://127.0.0.1:8000/healthz | jq .`
+- [x] Backend containers (Compose)
+  - [x] `docker compose -f compose.staging.yml -p innernets-staging up -d --build`
+  - [x] Health OK: `curl -s http://127.0.0.1:8000/healthz | jq .`
 
-- [ ] Vercel (frontend project)
+- [x] Vercel (frontend project)
   - [ ] Import GitHub repo in Vercel; set Root Directory to `frontend/`
   - [ ] Confirm Framework auto-detects Vite; Output Directory `dist`
   - [ ] Set Environment Variables (Production scope):
@@ -180,7 +213,7 @@ Steps
   - [ ] Trigger the first build/deploy (will deploy to a `*.vercel.app` URL)
   - [ ] Add `staging.innernets.ai` under Project → Settings → Domains (will show a CNAME target to create in DNS)
 
-- [ ] DNS (Cloudflare)
+- [x] DNS (Cloudflare)
   - [ ] For `staging.innernets.ai` (Frontend via Vercel)
     - [ ] Create a `CNAME` record: Name `staging` → Target the value shown by Vercel (e.g., `cname.vercel-dns.com`)
     - [ ] Proxy status: DNS only (grey cloud) initially; switch to Proxied later if desired
@@ -193,7 +226,7 @@ Steps
     - [ ] Set SSL/TLS mode to “Full” (or “Full (strict)” once origin certs are valid)
     - [ ] Leave “Always Use HTTPS” off; Nginx/Vercel handle redirects and certs
 
-- [ ] Nginx + TLS for API
+- [x] Nginx + TLS for API
   - [ ] Configure server block per `docs/nginx-api-staging.conf.example`
   - [ ] `sudo nginx -t && sudo systemctl reload nginx`
   - [ ] `sudo certbot --nginx -d api-staging.innernets.ai --redirect`
