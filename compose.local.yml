@@ -1,0 +1,20 @@
+services:
+  api:
+    build: ./backend
+    env_file:
+      - backend/.env.local.docker
+    restart: unless-stopped
+    ports:
+      - "8000:8000"  # expose to host for frontend dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # reach host services like Surfer on 8001
+
+  worker:
+    build: ./backend
+    env_file:
+      - backend/.env.local.docker
+    command: ["python", "-m", "app.scheduler.worker_main"]
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+

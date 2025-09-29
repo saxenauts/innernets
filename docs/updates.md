@@ -3,6 +3,10 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-09-29 — Local Docker test verified: converted playbook steps to checkbox tasks and marked the Local Docker Test section as Done after successful verification.
+- 2025-09-29 — Staging/Dev/Prod Playbook: added `docs/staging-dev-prod-playbook.md` outlining environments, branching, CI/CD, Azure VM setup, DNS/TLS, Supabase plan, and open decisions to finalize before wiring CI. Linked to Surfer and backend runbooks.
+- 2025-09-29 — Staging infra files: added `backend/Dockerfile`, `backend/.dockerignore`, root `compose.staging.yml`, and GitHub Action `.github/workflows/deploy-staging.yml` for SSH-based deploys to the Azure VM.
+- 2025-09-29 — Staging checklist & env example: added detailed bring-up checklist to `docs/staging-dev-prod-playbook.md` and `backend/.env.example.staging` for VM setup.
 - 2025-09-29 — Frontend Docs & Consistency: aligned `sources` naming in StreamView (removed `sources_hints` usage); added Troubleshooting and optional dev proxy guidance to `frontend/README.md`; added `frontend/.env.example`; surfaced an a11y checklist in `frontend/AGENTS.md`; standardized test file naming to `test_*` and simplified Vitest include; removed duplicate Vite configs and untracked `*.tsbuildinfo` with `.gitignore`.
 - 2025-09-28 — Backend Supabase hardening (minimal): cached per‑token Supabase client to reuse HTTP pools and reduce TLS/EOF hiccups after idle; added a one‑shot retry on Streams reads and mapped repeated failures to HTTP 503. Also created `docs/TODO.md` to track deferred improvements (shared httpx PostgREST client, broader retry mapping, finalizer runner, a11y, CI). (ref: backend/src/app/supabase_client.py, backend/src/app/repositories/streams_repo.py, backend/src/app/routes/streams.py, docs/TODO.md)
 - 2025-09-27 — Streams & Runs UX: removed inline "job in queue" status. "Run Now" now disables on enqueue and remains disabled while a run is pending/in‑progress; it re‑enables when `/streams/:id/latest` reports a newer finished run. Added hover tooltip on the disabled button; no new inline text. Also added tests for run gating and pagination overfetch guard. (ref: frontend/src/pages/StreamView.tsx, frontend/src/test/test_stream_run_gating.tsx, frontend/src/test/test_streamview_pagination.tsx)
@@ -53,6 +57,24 @@ Use this document to record natural-language updates and maintain a lightweight 
  - 2025-08-26 — Backend packaging switched to Poetry; added `backend/pyproject.toml`; removed `requirements*.txt`; updated docs with Poetry run instructions; moved env templates into `backend/`. (ref: backend/pyproject.toml, backend/README.md, backend/AGENTS.md, backend/.env*)
 - 2025-08-26 — Added minimal profiles schema and RLS (migration 0001); created Supabase runbook for migrations and verification; trimmed SCHEMA.md to profiles-only. (ref: backend/migrations/2025-08-26_0001_profiles.sql, docs/backend-supabase-runbook.md, docs/backend-schema.md)
  - 2025-08-26 — Profiles API: added GET/PUT `/me/profile`, Pydantic models, Supabase repository, and tests; enabled Supabase JWT auth (Authorization Bearer). (ref: backend/src/app/**/*, backend/tests/*)
+
+## Task Board
+
+### Todo
+- [ ] Vercel: connect repo, map `staging.innernets.ai` to `main` deploys, set env vars.
+- [ ] Azure VM: install Docker/Compose, clone repo to `/opt/innernets`, add `backend/.env.staging`.
+- [ ] Reverse proxy: Nginx/Caddy for `api-staging.innernets.ai` → `127.0.0.1:8000` with HTTPS.
+- [ ] Surfer: run separately on VM, private on `8001`; verify `/healthz`.
+- [ ] Add `compose.staging.yml` at repo root (build backend locally; extra_hosts host-gateway); do not commit secrets.
+- [ ] Minimal GitHub Action: SSH to VM on push to `main`, run `git pull` + `docker compose up -d --build`.
+- [ ] Add `.env.example.staging` notes for backend (variables only, no secrets).
+- [ ] TODO: choose a container registry (GHCR/ACR) later.
+
+### In Progress
+- [ ] Trimmed playbook agreed; awaiting confirmation to add compose + CI skeletons.
+
+### Done
+- [x] Author staging/dev/prod playbook and simplify per decisions (subdomain, Surfer private, build on VM).
 
 Template
 - YYYY-MM-DD — Short description of what changed and why. (ref: #<issue> / PR <link>)

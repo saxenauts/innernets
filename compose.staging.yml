@@ -1,0 +1,20 @@
+services:
+  api:
+    build: ./backend
+    env_file:
+      - backend/.env.staging
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"  # private; Nginx proxies external HTTPS to this
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # allow container to reach host services (Surfer on 8001)
+
+  worker:
+    build: ./backend
+    env_file:
+      - backend/.env.staging
+    command: ["python", "-m", "app.scheduler.worker_main"]
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+

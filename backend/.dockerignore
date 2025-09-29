@@ -1,0 +1,19 @@
+# Git / VCS
+.git
+
+# Python / build
+__pycache__
+*.pyc
+.venv
+.pytest_cache
+.mypy_cache
+
+# Env files (never copy secrets to images)
+.env
+.env.*
+
+# Tests and docs (not needed in runtime image)
+tests
+README.md
+AGENTS.md
+

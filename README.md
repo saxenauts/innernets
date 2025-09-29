@@ -11,6 +11,7 @@ Monorepo for the InnerNets web product. This README orients new engineers and li
 - Architecture overview: `docs/architecture-runs-scheduler.md`
 - Integration guide (frontend ↔ backend): `docs/integration.md`
 - Changelog & task board: `docs/updates.md`
+- Staging/Dev/Prod Playbook: `docs/staging-dev-prod-playbook.md`
 
 ## Service Docs Index
 - Frontend: `frontend/AGENTS.md`, `docs/frontend-design.md`
