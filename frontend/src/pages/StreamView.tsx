@@ -156,12 +156,13 @@ export default function StreamView() {
   // Background poll latest while disabled to re-enable when the enqueued run completes
   useEffect(() => {
     if (!id) return;
+    const streamId = id;
     let cancelled = false;
     let timer: number | null = null;
 
     async function checkLatest() {
       try {
-        const latest = await api.get<any>(`/streams/${encodeURIComponent(id)}/latest`);
+        const latest = await api.get<any>(`/streams/${encodeURIComponent(streamId)}/latest`);
         if (cancelled) return;
         const started = latest?.started_at || latest?.run_at || null;
         const finished = latest?.finished_at || null;
@@ -183,7 +184,7 @@ export default function StreamView() {
             setRunHoverHint(undefined);
             // Optionally refresh runs list to include the new run
             try {
-              const page = await api.get<RunsRes>(`/streams/${encodeURIComponent(id)}/runs?limit=5`);
+              const page = await api.get<RunsRes>(`/streams/${encodeURIComponent(streamId)}/runs?limit=5`);
               setRuns(page.runs || []);
               setCursor(page.next_cursor || null);
               setHasMore(!!(page.runs && page.runs.length > 0 && page.next_cursor));
