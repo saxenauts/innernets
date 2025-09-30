@@ -89,6 +89,10 @@ docker compose -f compose.staging.yml -p innernets-staging up -d --build
 - Set backend `SURFER_BASE_URL=http://host.docker.internal:8001` in `backend/.env.staging` so the API container can reach the host’s Surfer service.
 - Health check before starting the worker: `curl -s http://127.0.0.1:8001/healthz | jq .`.
 
+Surfer CI/deploy strategy:
+- We deploy Surfer from its own repository with a similar SSH workflow (clone/pull + `docker compose up -d --build`).
+- This repo’s CI will not update Surfer (leave `SURFER_WORKDIR` unset).
+
 ## Supabase (dev + staging shared for now)
 - Using one Supabase for both is fine to start.
 - “Gating migrations” explained simply: don’t auto-apply schema migrations on every deploy. Run them only when you intend to change the shared DB.
@@ -204,41 +208,41 @@ Steps
   - [x] Health OK: `curl -s http://127.0.0.1:8000/healthz | jq .`
 
 - [x] Vercel (frontend project)
-  - [ ] Import GitHub repo in Vercel; set Root Directory to `frontend/`
-  - [ ] Confirm Framework auto-detects Vite; Output Directory `dist`
-  - [ ] Set Environment Variables (Production scope):
-    - [ ] `VITE_API_BASE_URL=https://api-staging.innernets.ai`
-    - [ ] `VITE_SUPABASE_URL=<your supabase url>`
-    - [ ] `VITE_SUPABASE_ANON_KEY=<your anon key>`
-  - [ ] Trigger the first build/deploy (will deploy to a `*.vercel.app` URL)
-  - [ ] Add `staging.innernets.ai` under Project → Settings → Domains (will show a CNAME target to create in DNS)
+  - [x] Import GitHub repo in Vercel; set Root Directory to `frontend/`
+  - [x] Confirm Framework auto-detects Vite; Output Directory `dist`
+  - [x] Set Environment Variables (Production scope):
+    - [x] `VITE_API_BASE_URL=https://api-staging.innernets.ai`
+    - [x] `VITE_SUPABASE_URL=<your supabase url>`
+    - [x] `VITE_SUPABASE_ANON_KEY=<your anon key>`
+  - [x] Trigger the first build/deploy (will deploy to a `*.vercel.app` URL)
+  - [x] Add `staging.innernets.ai` under Project → Settings → Domains (will show a CNAME target to create in DNS)
 
 - [x] DNS (Cloudflare)
-  - [ ] For `staging.innernets.ai` (Frontend via Vercel)
-    - [ ] Create a `CNAME` record: Name `staging` → Target the value shown by Vercel (e.g., `cname.vercel-dns.com`)
-    - [ ] Proxy status: DNS only (grey cloud) initially; switch to Proxied later if desired
-    - [ ] Verify in Vercel until status shows “Configured”
-  - [ ] For `api-staging.innernets.ai` (Backend on VM)
-    - [ ] Create an `A` record: Name `api-staging` → Value `<VM Public IP>`, TTL 300s
-    - [ ] Proxy status: DNS only (grey cloud) until Let’s Encrypt issues cert via Nginx
-    - [ ] Validate: `dig +short api-staging.innernets.ai` returns the VM IP
+  - [x] For `staging.innernets.ai` (Frontend via Vercel)
+    - [x] Create a `CNAME` record: Name `staging` → Target the value shown by Vercel (e.g., `cname.vercel-dns.com`)
+    - [x] Proxy status: DNS only (grey cloud)
+    - [x] Verified in Vercel as Configured
+  - [x] For `api-staging.innernets.ai` (Backend on VM)
+    - [x] Create an `A` record: Name `api-staging` → Value `<VM Public IP>`, TTL 300s
+    - [x] Proxy status: DNS only (grey cloud) during Let’s Encrypt issuance
+    - [x] Validated via `dig +short api-staging.innernets.ai`
   - [ ] Cloudflare SSL/TLS
     - [ ] Set SSL/TLS mode to “Full” (or “Full (strict)” once origin certs are valid)
     - [ ] Leave “Always Use HTTPS” off; Nginx/Vercel handle redirects and certs
 
 - [x] Nginx + TLS for API
-  - [ ] Configure server block per `docs/nginx-api-staging.conf.example`
-  - [ ] `sudo nginx -t && sudo systemctl reload nginx`
-  - [ ] `sudo certbot --nginx -d api-staging.innernets.ai --redirect`
+  - [x] Configure server block per `docs/nginx-api-staging.conf.example` (HTTP-only first)
+  - [x] `sudo nginx -t && sudo systemctl reload nginx`
+  - [x] `sudo certbot --nginx -d api-staging.innernets.ai --redirect`
 
-- [ ] GitHub Actions deploy (SSH)
-  - [ ] Add secrets: `STAGING_SSH_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_PORT` (opt), `STAGING_SSH_KEY`, `STAGING_WORKDIR=/opt/innernets`
-  - [ ] Push to `main` triggers `.github/workflows/deploy-staging.yml`
+- [x] GitHub Actions deploy (SSH)
+  - [x] Add secrets: `STAGING_SSH_HOST`, `STAGING_SSH_USER`, `STAGING_SSH_PASSWORD`, `STAGING_WORKDIR=/home/<user>/apps/innernets`
+  - [x] Push to `main` triggers `.github/workflows/deploy-staging.yml` (with retrying health check)
 
-- [ ] Smoke tests
-  - [ ] Surfer: `curl -s http://127.0.0.1:8001/healthz | jq .`
-  - [ ] Backend: `curl -s https://api-staging.innernets.ai/healthz | jq .`
-  - [ ] Frontend: login, create Stream, Run Now → see curation
+- [x] Smoke tests
+  - [x] Surfer: `curl -s http://127.0.0.1:8001/healthz | jq .`
+  - [x] Backend: `curl -s https://api-staging.innernets.ai/healthz | jq .`
+  - [x] Frontend: login, create Stream, Run Now → see curation
 
 - [ ] Operations
   - [ ] DB migrations: run intentionally via `psql` with `POSTGRES_CONNECTION_STRING`

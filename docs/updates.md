@@ -3,6 +3,7 @@
 Use this document to record natural-language updates and maintain a lightweight task board. Keep entries concise, dated, and linked to issues/PRs where possible.
 
 ## Updates Log
+- 2025-09-29 — CI deploy solidified: added retrying health check + deployed commit/compose status print to staging workflow; confirmed full rebuild/recreate works. Decided Surfer deploys from its own repo; this repo’s CI will not update Surfer.
 - 2025-09-29 — Frontend build hardening: cached the validated stream id in StreamView before calling `encodeURIComponent`, eliminating `string | undefined` type errors so `npm run build` (tsc + vite) completes cleanly. (ref: frontend/src/pages/StreamView.tsx)
 - 2025-09-29 — Local Docker test verified: converted playbook steps to checkbox tasks and marked the Local Docker Test section as Done after successful verification.
 - 2025-09-29 — Staging/Dev/Prod Playbook: added `docs/staging-dev-prod-playbook.md` outlining environments, branching, CI/CD, Azure VM setup, DNS/TLS, Supabase plan, and open decisions to finalize before wiring CI. Linked to Surfer and backend runbooks.
