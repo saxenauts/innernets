@@ -61,3 +61,5 @@ class Settings:
 
 
 settings = Settings()
+
+# no-op change to trigger staging deploy via CI (safe comment)
