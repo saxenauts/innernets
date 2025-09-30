@@ -36,6 +36,9 @@ jobs:
             git checkout main
             git pull --ff-only
             docker compose -f compose.staging.yml -p innernets-staging up -d --build --remove-orphans
+            echo "Deployed commit: $(git rev-parse --short HEAD)"
+            echo "Compose status:"
+            docker compose -f compose.staging.yml -p innernets-staging ps
 
       - name: Update Surfer service (optional)
         uses: appleboy/ssh-action@v1.0.3
@@ -62,9 +65,20 @@ jobs:
             git pull --ff-only || true
             docker compose up -d --build --remove-orphans
 
-      - name: Verify API health
+      - name: Verify API health (retry)
         run: |
           set -euo pipefail
           HOST="${{ vars.API_STAGING_HOST }}"
           if [ -z "$HOST" ]; then HOST='api-staging.innernets.ai'; fi
-          curl -fsS "https://$HOST/healthz"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$HOST/healthz" || true)
+            if [ "$code" = "200" ]; then
+              echo "Health OK (200)"
+              exit 0
+            fi
+            echo "Health $code; retry $i/30"
+            sleep 3
+          done
+          echo "Health check failed after retries"
+          curl -i "https://$HOST/healthz" || true
+          exit 1
