@@ -25,7 +25,6 @@ Code
    - `src/app/llm/search_steps.py` — Pydantic schemas + wrappers for LLM steps
  - `src/app/agents/search_workflow.py` — orchestration (IDs only to LLM; Exa routing)
 - `src/app/agents/surfer_workflow.py` — orchestration for Surfer Docker service (LLM → instruction+context → submit/poll → remix final markdown feed)
-- `src/app/scheduler/finalizer.py` — background reconciler that finalizes Surfer jobs that finish after timeouts
  - `src/app/agents/dispatcher.py` — routes jobs to either Surfer or legacy Exa workflow
 
 Service Plan
@@ -81,13 +80,13 @@ Migrations Runbook (short)
 Surfer Docker Integration
 - Start the Surfer service from its repo (Docker). See `docs/surfer-docker-integration.md`.
 - Set `SURFER_BASE_URL` in `backend/.env` to its host:port (avoid port 8000 collision with this backend).
-- In dev, `SURFER_USE_MOCK=1` will use `/api/explorer/mock` for fast wiring.
+- The Surfer service now provides only the low-level primitives (`/api/google-search`, `/api/read-wave`). The Explorer planning loop runs in-process inside `surfer_workflow`.
 - Streams created via `/streams` default their schedule `meta.agent` to `surfer_v1`. Scheduler payloads inherit this and the dispatcher runs `surfer_workflow` accordingly.
-- The workflow performs two LLM steps: first to author the Surfer instruction+context (task-first XML prompt), second to remix Surfer’s `{summary, links[]}` into a markdown body (`body_md`) per curation with explicit links.
+- The workflow performs two LLM steps: first to author the Surfer instruction+context (task-first XML prompt), second to remix the Explorer curations into a markdown body (`body_md`) per item with explicit links.
 
 Long-running jobs
-- Surfer typically runs 5–25 minutes (may be longer). The worker polls status every `SURFER_POLL_INTERVAL_S` seconds and persists a `curation_run` upon completion. A Finalizer loop also reconciles late completions (e.g., sleep/long jobs) by checking Surfer and persisting results if the worker previously timed out.
-- For prod, run API and worker separately. Ensure the worker and finalizer have network access to the Surfer service.
+- Explorer runs entirely inside the worker process, so there is no remote job polling or finalizer reconciliation. Each run writes metrics (including `explorer_confidence` and artifact paths) as soon as the loop completes.
+- For prod, run API and worker separately. Ensure the worker can reach the Surfer service for Google search and read-wave calls.
 
 Next
 - Add logging strategy, DB migrations, scheduler worker, and expand LLM adapter (retries, rate limits, cost est.).

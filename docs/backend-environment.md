@@ -64,8 +64,6 @@ Local Setup (docs-first)
 Staging defaults (recommended)
 - SCHEDULER_IN_APP=0 (API does not run an in-app worker thread)
 - Run a single external worker process (see Procfile)
-- SURFER_POLL_INTERVAL_S=30
-- SURFER_MAX_WAIT_S=1800  # 30 minutes
 
 Example (Procfile)
 ```
@@ -98,11 +96,8 @@ Change Log
 Surfer Docker Service (External)
 - SURFER_BASE_URL: Base URL for the Surfer service (e.g., `http://127.0.0.1:8001`). Ensure it does not conflict with this backend’s port.
 - SURFER_API_KEY: Optional bearer token if the service enforces auth.
-- SURFER_POLL_INTERVAL_S: Poll interval when waiting for long‑running jobs (default 30).
-- SURFER_MAX_WAIT_S: Max wait in seconds before timing out (default 1800).
-- SURFER_HEADLESS: `1`/`0` for browser headless mode (default 1).
-- SURFER_MAX_STEPS: Explorer max steps hint (default 3).
-- SURFER_USE_MOCK: `1` to call `/api/explorer/mock` in dev for fast integration.
+- SURFER_HEADLESS: `1`/`0` for browser headless mode (default 1). Set `0` when you want to watch Playwright in the noVNC window.
+- SURFER_MAX_STEPS, SURFER_BATCH_SIZE, SURFER_MAX_DEPTH, SURFER_SEARCH_CONCURRENCY, SURFER_READ_CONCURRENCY: tuning knobs passed into the in-process Explorer loop. Adjust only if you need larger runs.
 
 Notes
 - For neural/auto searches, we enforce `numResults ≤ 25` to stay within the low-cost tier.
@@ -115,9 +110,5 @@ curl -s $SURFER_BASE_URL/healthz | jq .
 # Expect: { "status": "ok", ... }
 ```
 
-Minimal explorer submit (dev)
-```
-curl -s -X POST "$SURFER_BASE_URL/api/explorer/jobs" \
-  -H 'content-type: application/json' \
-  -d '{"instruction":"Research topic","headless":true,"max_steps":2}' | jq .
-```
+Explorer now runs entirely inside the InnerNets worker. The Surfer service is only responsible for
+`/api/google-search` and `/api/read-wave`, so there is no remote explorer job queue to poll or mock.

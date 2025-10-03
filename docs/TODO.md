@@ -3,7 +3,6 @@
 - [ ] Backend: unify PostgREST client + retries (shared httpx client, 1x retry, map upstream failures to 503)
 - [ ] Backend: typed error model for PostgREST errors (`{code,message}` up the stack)
 - [ ] Backend: Surfer health gate (probe `/healthz`, short backoff, fail fast with 503 when down)
-- [ ] Backend: finalizer runner (standalone entry) + light backoff + basic metrics
 - [ ] Backend: atomic job claiming for workers; queue depth/success/fail counters
 - [ ] Agent: add a content index to the main AI agent (index curations/links for retrieval)
 - [ ] Frontend: error UX (distinct 401 vs 5xx banners)

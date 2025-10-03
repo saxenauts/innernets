@@ -165,7 +165,7 @@ This mirrors staging but runs everything on your machine so you can keep using `
 Steps
 - [x] Create a local backend env file from example:
   - [x] `cp backend/.env.example.local.docker backend/.env.local.docker` and fill Supabase vars.
-  - [x] Keep `SURFER_USE_MOCK=1` to avoid running Surfer locally, or run Surfer on your host at `127.0.0.1:8001` and keep `SURFER_BASE_URL=http://host.docker.internal:8001`.
+  - [x] Point `SURFER_BASE_URL` at your local Surfer service (e.g., `http://host.docker.internal:8001`). Explorer now runs inside the worker, so the external service only needs to expose `/api/google-search` and `/api/read-wave`.
 - [x] Start backend containers (api + worker):
   - [x] `docker compose -f compose.local.yml -p innernets-local up -d --build`
 - [x] Frontend dev:

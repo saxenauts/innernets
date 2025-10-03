@@ -52,8 +52,6 @@ class Settings:
         # Example: SURFER_BASE_URL=http://127.0.0.1:8001
         self.SURFER_BASE_URL: str = os.getenv("SURFER_BASE_URL", "http://127.0.0.1:8001")
         self.SURFER_API_KEY: Optional[str] = os.getenv("SURFER_API_KEY")
-        self.SURFER_POLL_INTERVAL_S: int = int(os.getenv("SURFER_POLL_INTERVAL_S", "30"))
-        self.SURFER_MAX_WAIT_S: int = int(os.getenv("SURFER_MAX_WAIT_S", "1800"))  # 30 minutes
         self.SURFER_HEADLESS: bool = os.getenv("SURFER_HEADLESS", "1") in {"1", "true", "TRUE"}
         self.SURFER_MAX_STEPS: int = int(os.getenv("SURFER_MAX_STEPS", "3"))
         # Depth per iteration for follow-up reading waves (SERP -> page -> subpage ...)
@@ -63,13 +61,6 @@ class Settings:
         # Optional concurrency hints (used for search fanout only on our side)
         self.SURFER_SEARCH_CONCURRENCY: int = int(os.getenv("SURFER_SEARCH_CONCURRENCY", "3"))
         self.SURFER_READ_CONCURRENCY: int = int(os.getenv("SURFER_READ_CONCURRENCY", "8"))
-        # Dev-only: route to /api/explorer/mock
-        self.SURFER_USE_MOCK: bool = os.getenv("SURFER_USE_MOCK", "0") in {"1", "true", "TRUE"}
-
-        # New Explorer Engine (v2) flags
-        self.SURFER_ENGINE_ENABLED: bool = os.getenv("SURFER_ENGINE_ENABLED", "0") in {"1", "true", "TRUE"}
-        # logging style for the engine: 'surfer' to mimic ai-surfer explorer logs
-        self.SURFER_ENGINE_LOG_STYLE: str = os.getenv("SURFER_ENGINE_LOG_STYLE", "surfer")
 
 
 settings = Settings()
