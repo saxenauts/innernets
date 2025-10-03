@@ -27,10 +27,27 @@ logger = logging.getLogger("scheduler")
 
 def run_once(handle_job) -> int:
     """Claim one job and process it. Returns number of jobs processed."""
+    logger.debug("worker.loop: claiming jobs")
     jobs = claim_jobs(limit=1)
     if not jobs:
+        logger.debug("worker.loop: no jobs to process")
         return 0
     job = jobs[0]
+    try:
+        # Emit a compact INFO log when we start processing a job
+        logger.info(
+            json.dumps(
+                {
+                    "event": "worker.job_processing",
+                    "job_id": job.get("id"),
+                    "user_id": job.get("user_id"),
+                    "schedule_id": job.get("schedule_id"),
+                    "payload_type": (job.get("payload") or {}).get("type"),
+                }
+            )
+        )
+    except Exception:
+        pass
     trace_id = str(uuid.uuid4())
     t0 = time.time()
     run = start_run(job["id"])  # start run record

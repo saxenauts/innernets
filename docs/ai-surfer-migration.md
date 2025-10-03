@@ -4,7 +4,7 @@ AI Surfer → InnerNets Migration Log
 Status Snapshot
 ---------------
 - InnerNets branch: `surfer-ai-migration`
-- Ai-surfer branch: `feature/decoupling-ai`
+- Ai-surfer branch: `feature/explorer-readwave-fix` *(renamed from the earlier `feature/decoupling-ai` work branch on 2025-10-03)*
 - Objective: move the full Explorer “intelligence” (planner, SERP filter, reading loop, curation) into InnerNets while keeping ai-surfer responsible only for browser/search/markdown primitives.
 
 Chronological Log of Work
@@ -19,7 +19,7 @@ Chronological Log of Work
    - Added early placeholder module (`app/explorer/engine`) with custom steps; later removed once direct Explorer port was adopted.
 
 3. **Ai-surfer branch setup**
-   - Created `feature/decoupling-ai` branch in `ai-surfer` repository to host service changes.
+   - Created `feature/decoupling-ai` branch in `ai-surfer` repository to host service changes (renamed later to `feature/explorer-readwave-fix`).
 
 4. **New ai-surfer `/api/read-wave` endpoint**
    - File: `ai-surfer/surfer-agent/devserver/app.py`, `devserver/services.py` (initial version).
@@ -95,7 +95,7 @@ Chronological Log of Work
 Key Endpoints & Contracts (Current State)
 -----------------------------------------
 
-Ai-surfer devserver (`feature/decoupling-ai`)
+Ai-surfer devserver (`feature/explorer-readwave-fix`)
 - `POST /api/google-search`
   - Body: `{ "query": str, "headless"?: bool }
   - Behavior: runs query via shared JobSession; returns `{ "result": { "items": { "serp": { "items": [...] } } }, "logs": str }`.

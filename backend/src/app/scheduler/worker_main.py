@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import signal
 
 from ..config import settings
+import logging
 from .worker import run_once
 from ..agents.dispatcher import handle as handle_job
 
@@ -20,6 +21,19 @@ def _handle_signal(signum, frame):
 
 def main() -> None:
     load_dotenv(os.getenv("DOTENV_PATH", ".env"), override=False)
+    # Configure root logging level from LOG_LEVEL
+    level = os.getenv("LOG_LEVEL", "info").lower()
+    lvl = logging.INFO
+    if level in {"debug"}: lvl = logging.DEBUG
+    if level in {"warning","warn"}: lvl = logging.WARNING
+    if level in {"error"}: lvl = logging.ERROR
+    logging.basicConfig(level=lvl, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # Clamp noisy third‑party loggers even when LOG_LEVEL=debug
+    for noisy in ("httpx", "httpcore", "hpack", "postgrest", "supabase", "anyio"):
+        try:
+            logging.getLogger(noisy).setLevel(logging.WARNING)
+        except Exception:
+            pass
     interval = 2.0
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)

@@ -19,10 +19,17 @@ logger = logging.getLogger("scheduler")
 
 def enqueue_job(user_id: str, payload: Dict[str, Any], schedule_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
     sb = sb_mod.get_service_client()
+    # Ensure the row is immediately discoverable by worker.claim_jobs(),
+    # which filters on status='queued' and orders by queued_at.
+    now = datetime.now(timezone.utc).isoformat()
     row = {
         "user_id": user_id,
         "payload": payload,
         "schedule_id": schedule_id,
+        "status": "queued",
+        "queued_at": now,
+        "attempts": 0,
+        "max_attempts": 3,
     }
     if idempotency_key:
         row["idempotency_key"] = idempotency_key

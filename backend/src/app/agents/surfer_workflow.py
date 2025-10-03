@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import datetime as dt
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from app.config import settings
@@ -8,6 +10,7 @@ from app.llm import surfer_steps
 from app.repositories import curations_repo, urls_repo
 from app.scheduler.jobs import update_run_metrics
 from app.clients import surfer_client
+from app.explorer.runner import Explorer, ExplorerConfig
 from app.supabase_client import get_service_client
 
 
@@ -45,6 +48,50 @@ def _build_prior_context(stream_id: Optional[str]) -> str:
     return "\n".join(lines)
 
 
+def _make_artifacts_dir(job_id: Optional[str]) -> Path:
+    base = Path(__file__).resolve().parents[4] / ".artifacts" / "innernets-explorer"
+    base.mkdir(parents=True, exist_ok=True)
+    suffix = (job_id or "local").replace("/", "-")[:12]
+    stamp = dt.datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    path = base / f"explorer-{stamp}-{suffix}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _curations_from_batches(result: Dict[str, Any]) -> List[Dict[str, Any]]:
+    batches = result.get("curations_batches") or []
+    out: List[Dict[str, Any]] = []
+    for batch in batches:
+        pages = batch.get("pages") or []
+        page_map = {}
+        for pg in pages:
+            pid = pg.get("id") if isinstance(pg, dict) else None
+            if pid is not None:
+                page_map[str(pid)] = pg
+        curations = batch.get("curations") or []
+        for cur in curations:
+            if not isinstance(cur, dict):
+                continue
+            summary = (cur.get("summary") or "").strip()
+            page_ids = [str(x) for x in (cur.get("pages") or [])]
+            links: List[Dict[str, str]] = []
+            for pid in page_ids:
+                pg = page_map.get(pid)
+                if not isinstance(pg, dict):
+                    continue
+                url = (pg.get("url") or "").strip()
+                if not url:
+                    continue
+                title = (
+                    (pg.get("serp_title") or pg.get("title") or "").strip()
+                    or url
+                )
+                links.append({"url": url, "title": title})
+            if summary and links:
+                out.append({"summary": summary, "links": links})
+    return out
+
+
 def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]:
     payload = job.get("payload") or {}
     stream_id: Optional[str] = payload.get("stream_id") if isinstance(payload.get("stream_id"), str) else None
@@ -73,48 +120,31 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     instruction = (instr_out.instruction or "").strip() or mission
     stream_context = (instr_out.context or "").strip()
 
-    # Submit to surfer service and wait (long-running)
-    if settings.SURFER_USE_MOCK:
-        submit = surfer_client.explorer_submit(instruction, stream_context=stream_context, use_mock=True, sync=False)
-        job_id = submit.get("job_id")
-        if not job_id:
-            # In some mock impls sync returns curations directly
-            result = submit
-        else:
-            result = surfer_client.wait_for_result(job_id)
-    else:
-        submit = surfer_client.explorer_submit(
-            instruction,
-            stream_context=stream_context,
-            headless=settings.SURFER_HEADLESS,
-            max_steps=settings.SURFER_MAX_STEPS,
-            sync=False,
-        )
-        job_id = submit.get("job_id")
-        if not job_id:
-            # fallback to sync path if service is dev-mode
-            result = surfer_client.explorer_submit(
-                instruction, stream_context=stream_context, headless=settings.SURFER_HEADLESS, max_steps=settings.SURFER_MAX_STEPS, sync=True
-            )
-        else:
-            result = surfer_client.wait_for_result(job_id)
+    artifacts_dir = _make_artifacts_dir(job.get("id") if isinstance(job.get("id"), str) else None)
+    explorer_cfg = ExplorerConfig(
+        instruction=instruction,
+        artifacts_dir=artifacts_dir,
+        headless=settings.SURFER_HEADLESS,
+        max_steps=settings.SURFER_MAX_STEPS,
+        search_concurrency=settings.SURFER_SEARCH_CONCURRENCY,
+        read_concurrency=settings.SURFER_READ_CONCURRENCY,
+        batch_size=settings.SURFER_BATCH_SIZE,
+        max_depth=settings.SURFER_MAX_DEPTH,
+        batch_concurrency=settings.SURFER_READ_CONCURRENCY,
+        stream_context=stream_context,
+    )
 
-    # Persist Surfer IDs to the runs table as early as possible (if worker passed run_id via job)
+    explorer = Explorer(explorer_cfg)
     try:
-        run_id_for_metrics = job.get("__run_id") or job.get("_run_id")
-        if run_id_for_metrics and submit:
-            metrics_early = {
-                "agent": "surfer_v1",
-                "surfer_job_id": submit.get("job_id"),
-                "surfer_status_url": submit.get("status_url"),
-                "surfer_logs_url": submit.get("logs_url"),
-            }
-            update_run_metrics(str(run_id_for_metrics), metrics_early)
+        explorer.logger.info("Instruction", instruction)
+        if stream_context:
+            explorer.logger.info("Stream Context", stream_context)
     except Exception:
-        # best-effort only
         pass
+    result = explorer.run()
+    result.setdefault("artifacts_dir", str(artifacts_dir))
 
-    raw_curations: List[Dict[str, Any]] = list(result.get("curations") or [])
+    raw_curations: List[Dict[str, Any]] = _curations_from_batches(result)
 
     # LLM: turn summary -> title + hook
     remix = surfer_steps.remix_curations(cfg, mission, raw_curations, prior_context, sources_hints)
@@ -149,12 +179,12 @@ def run(job: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]
     # Persist if running for a stream
     metrics: Dict[str, Any] = {
         "agent": "surfer_v1",
-        "surfer_job_id": submit.get("job_id"),
-        "surfer_status_url": submit.get("status_url"),
-        "surfer_logs_url": submit.get("logs_url"),
+        "engine": "innernets_explorer",
         "surfer_result_ready": bool(raw_curations),
         "curations_raw": len(raw_curations),
         "curations_final": len([c for c in curated_dicts if (c.get("title") and c.get("links"))]),
+        "explorer_confidence": result.get("confidence"),
+        "explorer_artifacts_dir": result.get("artifacts_dir"),
     }
 
     if stream_id:
