@@ -97,7 +97,7 @@ Notes (SPA idle behavior)
 1. User creates a Stream from Onboarding (`mission`, optional `sources`, `cadence`).
 2. Backend stores the Stream and creates a user‑owned Schedule with `meta.stream_id` and `meta.agent='surfer_v1'`.
 3. The scheduler enqueues jobs when schedules are due; Run Now creates an ad‑hoc job immediately.
-4. Worker claims the job, dispatcher selects the agent (Surfer by default), results are remixed into curations and persisted.
+4. Worker claims the job and dispatcher selects the agent (Surfer by default). For `surfer_v1` the worker runs the Explorer module in-process, calling the Surfer service only for `/api/google-search` and `/api/read-wave`. Explorer returns findings that are remixed into curations and persisted.
 5. Frontend fetches the latest or historical runs and renders markdown bodies (`body_md`) and link chips.
 
 ## Local Development

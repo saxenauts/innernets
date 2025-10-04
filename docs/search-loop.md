@@ -8,8 +8,8 @@ Purpose: Long-running, browser-based exploration. Yields findings that are remix
 High-level steps
 1. Build prior context (recent Stream runs).
 2. LLM drafts a concise exploration instruction and a richer context block.
-3. Submit to the Surfer service (async), poll until completion.
-4. Fetch `{ curations: [{ summary, links[] }] }` from Surfer.
+3. Run the Explorer module in-process. It iterates through search and reading waves locally, calling Surfer’s primitive APIs (`/api/google-search`, `/api/read-wave`) on each step.
+4. Receive Explorer findings `{ curations: [{ summary, links[] }] }` plus detailed logs.
 5. LLM remixes into output curations with `title`, `body_md`, and explicit `links` (no inline links in the body).
 6. Persist `curation_runs`, `curation_clusters`, and `curation_cluster_links`; resolve each link to the URL registry.
 
@@ -33,4 +33,3 @@ Where to read more
 - Plan and pricing: `docs/search-only-plan.md`
 - Agent and steps: `backend/src/app/agents/search_workflow.py`, `backend/src/app/llm/search_steps.py`
 - Architecture context: `docs/architecture-runs-scheduler.md`
-

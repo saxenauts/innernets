@@ -36,10 +36,11 @@ Audience: New engineers. This document explains how Streams are created, how run
    - Dispatcher selects the agent:
      - `surfer_v1` (default): `backend/src/app/agents/surfer_workflow.py`
      - legacy search-only: `backend/src/app/agents/search_workflow.py`
-   - Surfer agent flow:
+   - Surfer agent flow (in-process Explorer):
      - Build prior context from recent runs.
-     - Use LLM to generate a concise instruction + context for the Surfer service.
-     - Submit to Surfer, poll status, fetch results `{ curations: [{ summary, links[] }] }`.
+     - Use LLM to craft the Explorer instruction and context block.
+     - Instantiate the Explorer module (`backend/src/app/explorer/*`) inside the worker. It orchestrates each iteration locally, calling the Surfer service only for the primitive APIs (`/api/google-search`, `/api/read-wave`). No remote Explorer job submission/polling path remains.
+     - When the Explorer finishes it returns structured findings `{ curations: [{ summary, links[] }] }` along with detailed logs.
      - Remix via LLM into curations with `title`, `body_md`, and explicit `links`.
      - Persist `curation_runs`, `curation_clusters`, and `curation_cluster_links`. Ensure each link resolves to a URL in `urls`.
 
